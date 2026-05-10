@@ -62,9 +62,11 @@ Open `notebooks/colab_defense_pipeline.ipynb` in Colab and run all cells.
 
 ## 현재 구현된 방어 기법
 
-- JPEG Compression (quality=75, 50)
-- Spatial Smoothing (kernel=3, 5)
-- Bit-depth Reduction (bits=4, 3)
+| 방어 기법 | 스크립트 | 주요 파라미터 |
+|-----------|----------|--------------|
+| JPEG Compression | `src/defenses/defense_jpeg.py` | `--quality 75` (기본값) |
+| Gaussian Blur | `src/defenses/defense_smoothing.py` | `--radius 3` (PIL GaussianBlur) |
+| Bit-depth Reduction | `src/defenses/defense_bitdepth.py` | `--bits 4` (기본값) |
 
 ## 실행
 
