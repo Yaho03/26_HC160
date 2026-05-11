@@ -1,7 +1,15 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-outputs/
+outputs/attacks/
+outputs/defenses/jpeg/
+outputs/defenses/smoothing/
+outputs/defenses/bitdepth/
+
+# 아래는 GitHub에 올라감 (요약 결과)
+# outputs/defenses/defense_summary.csv
+# outputs/defenses/defense_report.md
+# outputs/defenses/figures/
 checkpoints/
 data/
 *.zip
