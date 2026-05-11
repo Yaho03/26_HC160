@@ -1,0 +1,19 @@
+result_file,defense,defense_params,attack_family,samples,defense_success_rate,recovery_rate,avg_target_conf_drop,avg_defense_time_sec
+/content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",fgsm,47,0.6382978723404256,0.1702127659574468,0.2822523778799842,0.24738021085104653
+/content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",jsma,169,0.9112426035502958,0.5384615384615384,0.24308850003555196,0.22271937441422046
+/content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",pgd,170,0.888235294117647,0.5294117647058824,0.8743860219660051,0.21565500917060812
+/content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",square,101,0.8712871287128713,0.504950495049505,0.17787185322382662,0.22804735025742012
+/content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",zoo,12,0.5,0.08333333333333333,-0.03261862167467675,0.19634379408345615
+/content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",ALL,499,0.8597194388777555,0.48296593186372744,0.44201818780781316,0.2230795664328792
+/content/defense_results/jpeg/jpeg_results_q75.csv,jpeg,"{""quality"": 75}",fgsm,47,0.5531914893617021,0.2765957446808511,0.2998679003658447,0.22042138929786464
+/content/defense_results/jpeg/jpeg_results_q75.csv,jpeg,"{""quality"": 75}",jsma,169,0.9053254437869822,0.5857988165680473,0.24351849707846457,0.19832910649703464
+/content/defense_results/jpeg/jpeg_results_q75.csv,jpeg,"{""quality"": 75}",pgd,170,0.8764705882352941,0.5529411764705883,0.8703557063058457,0.20694725499412175
+/content/defense_results/jpeg/jpeg_results_q75.csv,jpeg,"{""quality"": 75}",square,101,0.8415841584158416,0.504950495049505,0.1789072075729618,0.1939826651089041
+/content/defense_results/jpeg/jpeg_results_q75.csv,jpeg,"{""quality"": 75}",zoo,12,0.33333333333333337,0.16666666666666666,0.026492497573296216,0.1784409865833254
+/content/defense_results/jpeg/jpeg_results_q75.csv,jpeg,"{""quality"": 75}",ALL,499,0.8356713426853708,0.5190380761523046,0.4440810126877709,0.20198797326452586
+/content/defense_results/smoothing/smoothing_results_r3p0.csv,gaussian_smoothing,"{""radius"": 3.0}",fgsm,47,0.7659574468085106,0.23404255319148937,0.2973320250141811,0.2010382040850848
+/content/defense_results/smoothing/smoothing_results_r3p0.csv,gaussian_smoothing,"{""radius"": 3.0}",jsma,169,0.9349112426035503,0.5384615384615384,0.24643266392794586,0.22392107665089458
+/content/defense_results/smoothing/smoothing_results_r3p0.csv,gaussian_smoothing,"{""radius"": 3.0}",pgd,170,0.9352941176470588,0.5352941176470588,0.8845862517023788,0.21358798214118102
+/content/defense_results/smoothing/smoothing_results_r3p0.csv,gaussian_smoothing,"{""radius"": 3.0}",square,101,0.8811881188118812,0.46534653465346537,0.17204506916574913,0.2256110489999745
+/content/defense_results/smoothing/smoothing_results_r3p0.csv,gaussian_smoothing,"{""radius"": 3.0}",zoo,12,0.6666666666666667,0.08333333333333333,0.034565312477449574,0.19308258583335672
+/content/defense_results/smoothing/smoothing_results_r3p0.csv,gaussian_smoothing,"{""radius"": 3.0}",ALL,499,0.9018036072144289,0.48296593186372744,0.44848241263399563,0.2178459348476927
