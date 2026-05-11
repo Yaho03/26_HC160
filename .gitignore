@@ -5,6 +5,7 @@ outputs/attacks/
 outputs/defenses/jpeg/
 outputs/defenses/smoothing/
 outputs/defenses/bitdepth/
+outputs/analysis/
 
 # 아래는 GitHub에 올라감 (요약 결과)
 # outputs/defenses/defense_summary.csv
