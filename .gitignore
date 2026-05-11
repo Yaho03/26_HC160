@@ -1,7 +1,10 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-outputs/
+outputs/attacks/
+outputs/defenses/jpeg/
+outputs/defenses/smoothing/
+outputs/defenses/bitdepth/
 checkpoints/
 data/
 *.zip
