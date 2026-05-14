@@ -78,7 +78,28 @@ Summarize verification attack sweeps:
 python -m src.verification.summarize_verification_attacks
 ```
 
-Generated verification outputs are written under `outputs/verification/` and are not committed to Git.
+FaceNet-style pretrained verification baseline:
+
+```bash
+pip install -q facenet-pytorch
+python -m src.verification.evaluate_facenet_verification \
+  --pairs outputs/verification/lfw_test_pairs.csv \
+  --pretrained vggface2
+python -m src.verification.targeted_pgd_facenet_verification \
+  --pairs outputs/verification/lfw_test_pairs.csv \
+  --metrics outputs/verification_facenet/verification_metrics.json \
+  --pretrained vggface2 \
+  --epsilon 0.005 \
+  --alpha 0.001 \
+  --steps 10 \
+  --limit 100 \
+  --only-initial-rejects
+python -m src.verification.summarize_verification_attacks \
+  --metadata-root outputs/verification_attacks_facenet \
+  --out outputs/verification_attacks_facenet/verification_attack_summary.csv
+```
+
+Generated verification outputs are written under `outputs/verification*/` and are not committed to Git.
 
 Typical attack result workflow:
 
