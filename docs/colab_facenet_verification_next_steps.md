@@ -87,3 +87,50 @@ cat outputs/verification_attacks_facenet/verification_attack_summary.csv
 - 평균 similarity gain
 - 평균 L2/Linf
 
+---
+
+## 추가 실험: 더 강한 FaceNet PGD sweep
+
+위 기본 sweep에서 eps=0.010의 성공률이 높게 나오면, 아래 셀로 eps와 step 수를 확장한다.
+
+```bash
+%%bash
+set -e
+
+cd /content/26_HC160
+
+echo "=== stronger FaceNet PGD sweep ==="
+for steps in 10 20 40; do
+  for eps in 0.010 0.015 0.020 0.030; do
+    echo "=== facenet eps=${eps}, steps=${steps} ==="
+    python -m src.verification.targeted_pgd_facenet_verification \
+      --pairs outputs/verification/lfw_test_pairs.csv \
+      --metrics outputs/verification_facenet/verification_metrics.json \
+      --pretrained vggface2 \
+      --epsilon "$eps" \
+      --alpha 0.001 \
+      --steps "$steps" \
+      --limit 100 \
+      --only-initial-rejects
+  done
+done
+
+echo "=== summarize stronger FaceNet PGD sweep ==="
+python -m src.verification.summarize_verification_attacks \
+  --metadata-root outputs/verification_attacks_facenet \
+  --out outputs/verification_attacks_facenet/verification_attack_summary.csv
+
+echo "=== save updated stronger FaceNet outputs to Drive ==="
+mkdir -p /content/drive/MyDrive/hanium-aml/results/verification_attacks_facenet
+cp -r outputs/verification_attacks_facenet/* /content/drive/MyDrive/hanium-aml/results/verification_attacks_facenet/
+
+echo "=== FaceNet attack summary ==="
+cat outputs/verification_attacks_facenet/verification_attack_summary.csv
+```
+
+확인 목표:
+
+- 90% 이상 성공하는 최소 epsilon
+- steps 증가에 따른 성공률 변화
+- epsilon 대비 L2/Linf 증가량
+- 이후 방어 실험에 사용할 대표 설정 선택
