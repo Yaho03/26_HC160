@@ -2,6 +2,9 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 outputs/attacks/
+outputs/analysis/
+outputs/verification/
+outputs/verification_attacks/
 outputs/defenses/jpeg/
 outputs/defenses/smoothing/
 outputs/defenses/bitdepth/
