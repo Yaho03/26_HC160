@@ -35,6 +35,44 @@ Defense modules should use `attack_index.csv` and read adversarial images from t
 
 Final attack result files are not committed to Git because they contain generated images and model outputs. They are shared separately through Google Drive or zip handoff files.
 
+## Verification baseline
+
+The first verification baseline reuses the trained ResNet-50 identity model as a feature extractor. It takes the feature vector before the final classification layer, compares two face images with cosine similarity, and reports verification metrics such as FAR, FRR, EER, and ROC-AUC.
+
+This is a bridge step from identity classification to face-authentication verification. A later version can replace the ResNet feature extractor with an ArcFace/InsightFace embedding model while keeping the same pair CSV and metric format.
+
+Build test pairs:
+
+```bash
+python -m src.verification.build_lfw_verification_pairs \
+  --data-dir data/processed/lfw_identity_10 \
+  --split test \
+  --out outputs/verification/lfw_test_pairs.csv
+```
+
+Evaluate clean verification:
+
+```bash
+python -m src.verification.evaluate_face_verification \
+  --pairs outputs/verification/lfw_test_pairs.csv \
+  --checkpoint checkpoints/face_resnet50_lfw10/best.pt
+```
+
+Run the first targeted verification PGD attack:
+
+```bash
+python -m src.verification.targeted_pgd_verification \
+  --pairs outputs/verification/lfw_test_pairs.csv \
+  --metrics outputs/verification/verification_metrics.json \
+  --checkpoint checkpoints/face_resnet50_lfw10/best.pt \
+  --epsilon 0.03 \
+  --alpha 0.003 \
+  --steps 10 \
+  --limit 100
+```
+
+Generated verification outputs are written under `outputs/verification/` and are not committed to Git.
+
 Typical attack result workflow:
 
 ```bash
