@@ -72,6 +72,12 @@ python -m src.verification.targeted_pgd_verification \
   --only-initial-rejects
 ```
 
+Summarize verification attack sweeps:
+
+```bash
+python -m src.verification.summarize_verification_attacks
+```
+
 Generated verification outputs are written under `outputs/verification/` and are not committed to Git.
 
 Typical attack result workflow:
