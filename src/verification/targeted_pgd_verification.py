@@ -90,6 +90,11 @@ def main() -> None:
     parser.add_argument("--steps", type=int, default=10)
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--include-positive-pairs", action="store_true")
+    parser.add_argument(
+        "--only-initial-rejects",
+        action="store_true",
+        help="Attack only pairs that are rejected before adding perturbation.",
+    )
     parser.add_argument("--random-start", action=argparse.BooleanOptionalAction, default=False)
     args = parser.parse_args()
 
@@ -103,8 +108,6 @@ def main() -> None:
         pairs = list(csv.DictReader(f))
     if not args.include_positive_pairs:
         pairs = [row for row in pairs if not parse_bool(row["same_identity"])]
-    if args.limit > 0:
-        pairs = pairs[: args.limit]
     if not pairs:
         raise ValueError(f"No usable pairs found in {args.pairs}")
 
@@ -114,7 +117,11 @@ def main() -> None:
     perturb_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, object]] = []
+    skipped_initial_accepts = 0
     for row in tqdm(pairs, desc="targeted verification PGD"):
+        if args.limit > 0 and len(rows) >= args.limit:
+            break
+
         source_path = Path(row["left_file"])
         target_path = Path(row["right_file"])
         source = load_clean_image(source_path, to_pixel_tensor, device)
@@ -125,6 +132,11 @@ def main() -> None:
             source_emb = embedding(backbone, source, mean, std)
             target_emb = embedding(backbone, target, mean, std).detach()
             similarity_before = cosine_score(source_emb, target_emb)
+
+        before_accept = similarity_before >= threshold
+        if args.only_initial_rejects and before_accept:
+            skipped_initial_accepts += 1
+            continue
 
         if args.random_start:
             adv = (source + torch.empty_like(source).uniform_(-args.epsilon, args.epsilon)).clamp(0, 1)
@@ -151,7 +163,6 @@ def main() -> None:
         visible_delta = (delta / (2 * args.epsilon)) + 0.5
         l0, l2, linf = tensor_norms(delta)
 
-        before_accept = similarity_before >= threshold
         after_accept = similarity_after >= threshold
         attack_success = after_accept
         success_from_reject = (not before_accept) and after_accept
@@ -189,6 +200,7 @@ def main() -> None:
             "alpha": args.alpha,
             "steps": args.steps,
             "random_start": args.random_start,
+            "only_initial_rejects": args.only_initial_rejects,
             "l0": l0,
             "l2": l2,
             "linf": linf,
@@ -209,6 +221,7 @@ def main() -> None:
 
     print(f"Device: {device}")
     print(f"Pairs: {len(rows)}")
+    print(f"Skipped initial accepts: {skipped_initial_accepts}")
     print(f"Threshold: {threshold:.4f}")
     print(f"Target accept rate after attack: {attack_success_rate:.2%}")
     print(f"Success from reject rate: {success_from_reject_rate:.2%}")

@@ -68,7 +68,8 @@ python -m src.verification.targeted_pgd_verification \
   --epsilon 0.03 \
   --alpha 0.003 \
   --steps 10 \
-  --limit 100
+  --limit 100 \
+  --only-initial-rejects
 ```
 
 Generated verification outputs are written under `outputs/verification/` and are not committed to Git.
