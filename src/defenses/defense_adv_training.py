@@ -98,13 +98,30 @@ def main() -> None:
     parser.add_argument("--mix-ratio",     type=float, default=0.5)
     parser.add_argument("--num-workers",   type=int,  default=2)
     parser.add_argument("--limit",         type=int,  default=0)
+    parser.add_argument("--drive-cache",   type=Path, default=None,
+                        help="Drive 캐시 경로. best_adv.pt 가 있으면 학습 생략.")
     args = parser.parse_args()
 
     device = get_device()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
+    best_path = args.out_dir / "best_adv.pt"
+
+    # ── Drive 캐시 확인 → 학습 생략 ──────────────────
+    if args.drive_cache and (args.drive_cache / "best_adv.pt").exists():
+        print(f"[INFO] Drive 캐시 발견 → 학습 생략: {args.drive_cache / 'best_adv.pt'}")
+        import shutil
+        shutil.copy(args.drive_cache / "best_adv.pt", best_path)
+        skip_training = True
+    elif best_path.exists():
+        print(f"[INFO] 로컬 체크포인트 발견 → 학습 생략: {best_path}")
+        skip_training = True
+    else:
+        skip_training = False
+
     # ── 모델 로드 ─────────────────────────────────
-    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    src_ckpt = best_path if skip_training else args.checkpoint
+    ckpt = torch.load(src_ckpt, map_location=device, weights_only=False)
     classes = ckpt["classes"]
     model = build_model(len(classes)).to(device)
     model.load_state_dict(ckpt["model_state_dict"])
@@ -144,19 +161,32 @@ def main() -> None:
                               num_workers=args.num_workers)
 
     # ── Fine-tuning ───────────────────────────────
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
-    best_val_acc = -1.0
-    best_path = args.out_dir / "best_adv.pt"
+    if not skip_training:
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+        best_val_acc = -1.0
 
-    for epoch in range(1, args.epochs + 1):
-        train_loss, train_acc = run_epoch(model, train_loader, criterion, device, optimizer)
-        val_loss,   val_acc   = run_epoch(model, val_loader,   criterion, device)
-        print(f"epoch={epoch:02d}  train_acc={train_acc:.2%}  val_acc={val_acc:.2%}")
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            torch.save({"model_state_dict": model.state_dict(),
-                        "classes": classes}, best_path)
+        epoch_bar = tqdm(range(1, args.epochs + 1), desc="Fine-tuning", unit="epoch")
+        for epoch in epoch_bar:
+            train_loss, train_acc = run_epoch(model, train_loader, criterion, device, optimizer)
+            val_loss,   val_acc   = run_epoch(model, val_loader,   criterion, device)
+            epoch_bar.set_postfix(
+                train_acc=f"{train_acc:.2%}",
+                val_acc=f"{val_acc:.2%}",
+                best=f"{best_val_acc:.2%}",
+            )
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                torch.save({"model_state_dict": model.state_dict(),
+                            "classes": classes}, best_path)
+                epoch_bar.write(f"  epoch {epoch:02d}  val_acc={val_acc:.2%}  → best 저장")
+
+        # Drive 캐시 저장
+        if args.drive_cache:
+            args.drive_cache.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy(best_path, args.drive_cache / "best_adv.pt")
+            print(f"[INFO] Drive 캐시 저장: {args.drive_cache / 'best_adv.pt'}")
 
     # ── 평가: adv 이미지를 새 모델로 재분류 ──────────
     ckpt = torch.load(best_path, map_location=device, weights_only=False)
