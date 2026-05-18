@@ -18,9 +18,10 @@ import pandas as pd
 import seaborn as sns
 
 RESULT_FILES: dict[str, tuple[str, str]] = {
-    "jpeg":      ("jpeg",      "jpeg_results_q75.csv"),
-    "smoothing": ("smoothing", "smoothing_results_r3p0.csv"),
-    "bitdepth":  ("bitdepth",  "bitdepth_results_4bit.csv"),
+    "jpeg":         ("jpeg",         "jpeg_results_q75.csv"),
+    "smoothing":    ("smoothing",    "smoothing_results_r3p0.csv"),
+    "bitdepth":     ("bitdepth",     "bitdepth_results_4bit.csv"),
+    "adv_training": ("adv_training", "adv_training_results.csv"),
 }
 
 ATTACK_ORDER = ["fgsm", "pgd", "square", "jsma", "zoo"]
@@ -29,9 +30,10 @@ DEFENSE_LABELS: dict[str, str] = {
     "jpeg":               "JPEG (q=75)",
     "gaussian_smoothing": "Gaussian (r=3)",
     "bit_depth":          "Bit-depth (4bit)",
+    "adv_training":       "Adv. Training (PGD)",
 }
 
-COLORS = ["#4C72B0", "#55A868", "#C44E52"]
+COLORS = ["#4C72B0", "#55A868", "#C44E52", "#DD8452"]
 
 
 # ──────────────────────────────────────────────

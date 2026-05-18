@@ -40,6 +40,12 @@ DEFENSE_CONFIGS: list[dict] = [
         out_subdir = "bitdepth",
         label      = "Bit-depth Reduction (4-bit)",
     ),
+    dict(
+        module     = "src.defenses.defense_adv_training",
+        args       = ["--attack-family", "pgd", "--epochs", "5", "--mix-ratio", "0.5"],
+        out_subdir = "adv_training",
+        label      = "Adversarial Training (PGD, 5 epochs)",
+    ),
 ]
 
 # tqdm 출력에서 처리된 샘플 수 파싱 (예: "100%|...| 47/47 ...")
