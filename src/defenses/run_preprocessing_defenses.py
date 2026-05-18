@@ -1,9 +1,9 @@
-"""Run all 3 defense methods (JPEG / Gaussian / Bit-depth) against all attack families.
+"""전처리 기반 방어 3종 실행 (JPEG / Gaussian Blur / Bit-depth).
 
 Usage from Colab notebook:
     import sys; sys.path.insert(0, REPO_DIR)
-    from src.defenses.run_defenses import run_all_defenses
-    run_all_defenses(
+    from src.defenses.run_preprocessing_defenses import run_preprocessing_defenses
+    run_preprocessing_defenses(
         attack_root = "/content/attack_outputs",
         index_path  = ".../outputs/attacks/attack_index.csv",
         ckpt_path   = ".../checkpoints/face_resnet50_lfw10/best.pt",
@@ -39,12 +39,6 @@ DEFENSE_CONFIGS: list[dict] = [
         args       = ["--bits", "4"],
         out_subdir = "bitdepth",
         label      = "Bit-depth Reduction (4-bit)",
-    ),
-    dict(
-        module     = "src.defenses.defense_adv_training",
-        args       = ["--attack-family", "pgd", "--epochs", "5", "--mix-ratio", "0.5"],
-        out_subdir = "adv_training",
-        label      = "Adversarial Training (PGD, 5 epochs)",
     ),
 ]
 
@@ -91,7 +85,7 @@ def _run_with_progress(cmd: list, cwd: str, env: dict, label: str) -> None:
         raise RuntimeError(f"{label} 실행 실패 (returncode={proc.returncode})")
 
 
-def run_all_defenses(
+def run_preprocessing_defenses(
     attack_root: str,
     index_path: str,
     ckpt_path: str,
