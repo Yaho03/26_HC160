@@ -94,23 +94,50 @@ Open `notebooks/colab_defense_pipeline.ipynb` in Colab and run all cells.
 ### Google Drive에 올려둘 파일
 
 ```
-내 드라이브/hanium-aml-defense/hanium_attack_outputs.zip
-내 드라이브/hanium-aml-defense/best.pt
+내 드라이브/hanium-aml-defense/
+  hanium_attack_outputs.zip   ← 공격 결과 (attack_index.csv + 적대적 이미지)
+  lfw_data.zip                ← LFW raw 데이터 (Adversarial Training 시 필요)
+  best.pt                     ← 학습된 ResNet-50 체크포인트
 ```
 
 ## 현재 구현된 방어 기법
 
-| 방어 기법 | 스크립트 | 주요 파라미터 |
-|-----------|----------|--------------|
-| JPEG Compression | `src/defenses/defense_jpeg.py` | `--quality 75` (기본값) |
-| Gaussian Blur | `src/defenses/defense_smoothing.py` | `--radius 3` (PIL GaussianBlur) |
-| Bit-depth Reduction | `src/defenses/defense_bitdepth.py` | `--bits 4` (기본값) |
+| 방어 기법 | 스크립트 | 주요 파라미터 | 방식 |
+|-----------|----------|--------------|------|
+| JPEG Compression | `src/defenses/defense_jpeg.py` | `--quality 75` | 전처리 |
+| Gaussian Blur | `src/defenses/defense_smoothing.py` | `--radius 3` (PIL GaussianBlur) | 전처리 |
+| Bit-depth Reduction | `src/defenses/defense_bitdepth.py` | `--bits 4` | 전처리 |
+| Adversarial Training | `src/defenses/defense_adv_training.py` | `--attack-family pgd --epochs 5 --mix-ratio 0.5` | 모델 재학습 |
+
+각 스크립트는 `--attack-family` 옵션으로 특정 공격만 필터링할 수 있으며, 생략하면 5종 공격 전체에 적용됩니다.
 
 ## 실행
 
 ```bash
-cd src
-python defense_fgsm_only.py
+# 전처리 방어 3종 일괄 실행
+python -m src.defenses.defense_jpeg      --quality 75
+python -m src.defenses.defense_smoothing --radius 3
+python -m src.defenses.defense_bitdepth  --bits 4
+
+# 적대적 학습 (시간 오래 걸림)
+python -m src.defenses.defense_adv_training \
+    --attack-family pgd --epochs 5 --mix-ratio 0.5
+
+python -m src.defenses.summarize_defense
 ```
 
-General defense utilities added by the attack side are under `src/defenses/`; the original FGSM-only defense script remains at `src/defense_fgsm_only.py` so the existing defense notebook keeps working.
+Defense source modules:
+
+- `src/defenses/run_preprocessing_defenses.py`: 전처리 방어 3종 일괄 실행 오케스트레이터
+- `src/defenses/plot_results.py`: 결과 로드 / 집계 / 시각화 / 보고서 생성
+
+## 실험 결과
+
+| 방어 기법 | 방어 성공률 | 복원율 |
+|-----------|-----------|--------|
+| Adversarial Training | **99.8%** | **99.8%** |
+| Gaussian Blur | 90.2% | 48.3% |
+| Bit-depth Reduction | 86.0% | 48.3% |
+| JPEG Compression | 83.6% | 51.9% |
+
+자세한 결과: `outputs/defenses/defense_report.md`
