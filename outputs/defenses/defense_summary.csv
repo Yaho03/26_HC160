@@ -1,4 +1,10 @@
 result_file,defense,defense_params,attack_family,samples,defense_success_rate,recovery_rate,avg_target_conf_drop,avg_defense_time_sec
+/content/defense_results/adv_training/adv_training_results.csv,adv_training,"{""attack_family"": ""pgd"", ""mix_ratio"": 0.5, ""epochs"": 5}",fgsm,47,1.0,1.0,0.4847836880913708,0.009952008340434864
+/content/defense_results/adv_training/adv_training_results.csv,adv_training,"{""attack_family"": ""pgd"", ""mix_ratio"": 0.5, ""epochs"": 5}",jsma,169,1.0,1.0,0.34375984336264664,0.00927289812428021
+/content/defense_results/adv_training/adv_training_results.csv,adv_training,"{""attack_family"": ""pgd"", ""mix_ratio"": 0.5, ""epochs"": 5}",pgd,170,0.9941176470588236,0.9941176470588236,0.9774451236755768,0.007288667494091903
+/content/defense_results/adv_training/adv_training_results.csv,adv_training,"{""attack_family"": ""pgd"", ""mix_ratio"": 0.5, ""epochs"": 5}",square,101,1.0,1.0,0.29668502689982784,0.0078824800396135
+/content/defense_results/adv_training/adv_training_results.csv,adv_training,"{""attack_family"": ""pgd"", ""mix_ratio"": 0.5, ""epochs"": 5}",zoo,12,1.0,1.0,0.29746764034644,0.007416568666712875
+/content/defense_results/adv_training/adv_training_results.csv,adv_training,"{""attack_family"": ""pgd"", ""mix_ratio"": 0.5, ""epochs"": 5}",ALL,499,0.9979959919839679,0.9979959919839679,0.5622860066021436,0.00833480352104396
 /content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",fgsm,47,0.6382978723404256,0.1702127659574468,0.2822523778799842,0.24738021085104653
 /content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",jsma,169,0.9112426035502958,0.5384615384615384,0.24308850003555196,0.22271937441422046
 /content/defense_results/bitdepth/bitdepth_results_4bit.csv,bit_depth,"{""bits"": 4}",pgd,170,0.888235294117647,0.5294117647058824,0.8743860219660051,0.21565500917060812
