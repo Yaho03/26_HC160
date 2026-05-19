@@ -1,10 +1,5 @@
 # 방어 Verification 전환 로드맵
 
-작성일: 2026-05-19  
-참고: `docs/generative_ai_adversarial_extension_plan.md` 3번, 4번, 8번
-
----
-
 ## 1. Verification 전환 시 핵심 지표
 
 금융 생체인증 관점에서 방어를 평가할 때 아래 지표를 사용한다.
