@@ -1,10 +1,4 @@
 # 방어 파트 진행 기록
-
-작성일: 2026-05-19  
-참고: `docs/generative_ai_adversarial_extension_plan.md`
-
----
-
 ## 최종 프로젝트 목표
 
 > 금융 생체인증 환경을 가정하여 얼굴 verification 모델에 대한 targeted adversarial impersonation attack을 구현하고,  
