@@ -169,12 +169,34 @@ python -m src.verification.build_verification_attack_handoff \
   --out-dir outputs/handoff/facenet_verification_attack_package \
   --zip-out outputs/handoff/facenet_verification_attack_package.zip
 
+echo "=== validate handoff package ==="
+python -m src.verification.validate_facenet_handoff_package \
+  --package-dir outputs/handoff/facenet_verification_attack_package
+
+echo "=== create defense result template ==="
+python -m src.verification.create_facenet_defense_result_template \
+  --handoff-index outputs/handoff/facenet_verification_attack_package/attack_handoff_index.csv \
+  --out outputs/handoff/facenet_verification_defense_results_template.csv
+
+echo "=== create representative attack panels ==="
+python -m src.verification.make_verification_attack_panels \
+  --package-dir outputs/handoff/facenet_verification_attack_package \
+  --out-dir outputs/handoff/facenet_verification_attack_panels \
+  --per-epsilon 6
+
 echo "=== save handoff package to Drive ==="
 mkdir -p /content/drive/MyDrive/hanium-aml/results/handoff
 cp outputs/handoff/facenet_verification_attack_package.zip \
+  /content/drive/MyDrive/hanium-aml/results/handoff/
+cp outputs/handoff/facenet_verification_defense_results_template.csv \
+  /content/drive/MyDrive/hanium-aml/results/handoff/
+rm -rf /content/drive/MyDrive/hanium-aml/results/handoff/facenet_verification_attack_panels
+cp -r outputs/handoff/facenet_verification_attack_panels \
   /content/drive/MyDrive/hanium-aml/results/handoff/
 
 echo "=== handoff package ==="
 ls -lh outputs/handoff/facenet_verification_attack_package.zip
 ls -lh /content/drive/MyDrive/hanium-aml/results/handoff/facenet_verification_attack_package.zip
+ls -lh /content/drive/MyDrive/hanium-aml/results/handoff/facenet_verification_defense_results_template.csv
+find /content/drive/MyDrive/hanium-aml/results/handoff/facenet_verification_attack_panels -type f | head -20
 ```

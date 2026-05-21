@@ -207,6 +207,21 @@ cp outputs/handoff/facenet_verification_attack_package.zip \
   /content/drive/MyDrive/hanium-aml/results/handoff/
 ```
 
+패키지 검증:
+
+```bash
+python -m src.verification.validate_facenet_handoff_package \
+  --package-dir outputs/handoff/facenet_verification_attack_package
+```
+
+방어팀 반환용 템플릿 생성:
+
+```bash
+python -m src.verification.create_facenet_defense_result_template \
+  --handoff-index outputs/handoff/facenet_verification_attack_package/attack_handoff_index.csv \
+  --out outputs/handoff/facenet_verification_defense_results_template.csv
+```
+
 ---
 
 ## 8. 방어팀에게 전달할 메시지
@@ -222,4 +237,3 @@ threshold 이상이면 공격 유지, threshold 미만이면 방어 성공으로
 
 우선 eps=0.005와 eps=0.010의 successful attack samples를 포함했습니다.
 ```
-
