@@ -134,3 +134,47 @@ cat outputs/verification_attacks_facenet/verification_attack_summary.csv
 - steps 증가에 따른 성공률 변화
 - epsilon 대비 L2/Linf 증가량
 - 이후 방어 실험에 사용할 대표 설정 선택
+
+---
+
+## 방어팀 전달 패키지 생성
+
+FaceNet attack metadata와 이미지가 생성되어 있고 Drive에 저장되어 있다면, 아래 셀로 방어팀 전달용 zip을 만든다.
+
+```bash
+%%bash
+set -e
+
+cd /content/26_HC160
+
+echo "=== pull latest handoff script ==="
+git pull
+
+echo "=== restore FaceNet outputs from Drive if needed ==="
+mkdir -p outputs/verification_facenet outputs/verification_attacks_facenet
+if [ -d /content/drive/MyDrive/hanium-aml/results/verification_facenet ]; then
+  cp -r /content/drive/MyDrive/hanium-aml/results/verification_facenet/* outputs/verification_facenet/ || true
+fi
+if [ -d /content/drive/MyDrive/hanium-aml/results/verification_attacks_facenet ]; then
+  cp -r /content/drive/MyDrive/hanium-aml/results/verification_attacks_facenet/* outputs/verification_attacks_facenet/ || true
+fi
+
+echo "=== build FaceNet verification attack handoff package ==="
+python -m src.verification.build_verification_attack_handoff \
+  --metadata-root outputs/verification_attacks_facenet \
+  --verification-metrics outputs/verification_facenet/verification_metrics.json \
+  --attack-summary outputs/verification_attacks_facenet/verification_attack_summary.csv \
+  --epsilons 0.005,0.010 \
+  --successful-only \
+  --out-dir outputs/handoff/facenet_verification_attack_package \
+  --zip-out outputs/handoff/facenet_verification_attack_package.zip
+
+echo "=== save handoff package to Drive ==="
+mkdir -p /content/drive/MyDrive/hanium-aml/results/handoff
+cp outputs/handoff/facenet_verification_attack_package.zip \
+  /content/drive/MyDrive/hanium-aml/results/handoff/
+
+echo "=== handoff package ==="
+ls -lh outputs/handoff/facenet_verification_attack_package.zip
+ls -lh /content/drive/MyDrive/hanium-aml/results/handoff/facenet_verification_attack_package.zip
+```
