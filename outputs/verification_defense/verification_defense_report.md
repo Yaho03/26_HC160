@@ -1,6 +1,66 @@
 # Verification 기반 방어 평가 보고서
 
-## 1. 실험 개요
+## 1. 공격팀 요구사항 및 이행 내역
+
+### 공격팀 요구사항 원문
+
+```
+패키지 안의 attack_handoff_index.csv를 기준으로 보시면 됩니다.
+각 row의 adv_file을 방어 입력으로 사용하고,
+방어 후 defended_file과 target_enroll_file의 FaceNet cosine similarity를 계산해 주세요.
+
+threshold 이상이면 공격 유지,
+threshold 미만이면 방어 성공입니다.
+
+우선 eps=0.005와 eps=0.010의 successful attack samples만 포함했고,
+총 212개 샘플입니다.
+Missing files는 0으로 확인했습니다.
+
+반환해주면 좋은 파일:
+- facenet_verification_defense_results.csv
+```
+
+### 이행 내역
+
+| 요구사항 | 이행 방법 | 관련 파일 |
+|---------|---------|---------|
+| attack_handoff_index.csv 각 row 기준 방어 적용 | index CSV 전체 212행 순회하며 방어 적용 | `verification_defense_base.py` |
+| adv_file을 방어 입력으로 사용 | 각 행의 `adv_file` 경로로 이미지 로드 후 변환 | `verification_defense_base.py` |
+| defended_file과 target_enroll_file의 FaceNet cosine similarity 계산 | `get_embedding()` 으로 두 이미지 임베딩 추출 후 cosine similarity 계산 | `facenet_embed.py` |
+| threshold 기준 공격 유지 / 방어 성공 판정 | `accepted_after_defense = similarity >= threshold` | `verification_defense_base.py` |
+| eps=0.005, eps=0.010 successful 212개 샘플 처리 | 패키지 그대로 사용, missing files 0개 확인 | `build_jpeg_index.py` |
+| facenet_verification_defense_results.csv 반환 | 방어 3종 결과 합본 CSV 생성 (636행) | `facenet_verification_defense_results.csv` |
+
+### 출력 파일 구조
+
+```
+outputs/verification_defense/
+  facenet_verification_defense_results.csv     ← 전체 합본 (공격팀 전달용, 636행)
+  jpeg/verification_defense_jpeg.csv           ← JPEG 방어 단독 (212행)
+  smoothing/verification_defense_smoothing.csv ← Smoothing 방어 단독 (212행)
+  bitdepth/verification_defense_bitdepth.csv   ← Bitdepth 방어 단독 (212행)
+```
+
+### 출력 CSV 컬럼 설명
+
+| 컬럼 | 설명 |
+|------|------|
+| `sample_id` | 샘플 고유 ID |
+| `defense` | 방어 기법명 (jpeg / smoothing / bitdepth) |
+| `defense_params` | 방어 파라미터 (JSON) |
+| `adv_file` | 입력 공격 이미지 경로 |
+| `defended_file` | 방어 적용 후 저장된 이미지 경로 |
+| `target_enroll_file` | 타겟 등록 이미지 경로 |
+| `threshold` | EER 기준 threshold (0.47966) |
+| `similarity_after_attack` | 방어 전 similarity (JPEG 파일 기준 재계산) |
+| `similarity_after_defense` | 방어 후 similarity |
+| `accepted_after_attack` | 방어 전 인증 통과 여부 |
+| `accepted_after_defense` | 방어 후 인증 통과 여부 |
+| `attack_success_after_defense` | 방어 후에도 공격 성공 여부 |
+| `defense_success` | 방어 성공 여부 |
+| `defense_time_sec` | 방어 처리 시간 (초) |
+
+## 2. 실험 개요
 
 ### 목표
 - 금융 생체인증 환경 가정
@@ -30,7 +90,7 @@ defense_success = accepted_after_attack == True  AND  accepted_after_defense == 
 
 ---
 
-## 2. Verification 전환 시 발생한 문제 — JPEG 압축 이슈
+## 3. Verification 전환 시 발생한 문제 — JPEG 압축 이슈
 
 ### 문제
 - 공격팀 adv 이미지(`.jpg`) 파일을 직접 불러와 similarity를 계산하면 CSV 기록값과 차이 발생
@@ -71,7 +131,7 @@ defense_success = accepted_after_attack == True  AND  accepted_after_defense == 
 
 ---
 
-## 3. 방어 기법 적용 방식
+## 4. 방어 기법 적용 방식
 
 ### 공통 파이프라인
 
@@ -116,7 +176,7 @@ src/defenses/
 
 ---
 
-## 4. 실험 결과
+## 5. 실험 결과
 
 ### 방어 성공률 (defense_success_rate)
 
@@ -144,7 +204,7 @@ src/defenses/
 
 ---
 
-## 5. 시각화
+## 6. 시각화
 
 ### 방어 성공률 비교 (epsilon별)
 
@@ -160,7 +220,7 @@ src/defenses/
 
 ---
 
-## 6. 방어 기법별 성능 분석
+## 7. 방어 기법별 성능 분석
 
 ### JPEG 압축 — 0.0% (사실상 방어 불가)
 
@@ -192,7 +252,7 @@ src/defenses/
 
 ---
 
-## 7. Adversarial Training 계획 (미적용)
+## 8. Adversarial Training 계획 (미적용)
 
 ### 현재 상태
 - 기존 `defense_adv_training.py`: ResNet-50 분류기 + CrossEntropyLoss 기준 학습
@@ -230,7 +290,7 @@ loss = 1 - cosine_similarity(
 
 ---
 
-## 8. 추후 진행할 사항
+## 9. 추후 진행할 사항
 
 ### (1) adv 이미지 PNG 재전달 — 최우선
 - 현재 상황: JPEG 저장으로 eps=0.005 공격 **41개(19.3%)** 가 파일 단계에서 이미 공격 실패
@@ -250,7 +310,7 @@ loss = 1 - cosine_similarity(
 
 ---
 
-## 9. 한계점 및 향후 과제
+## 10. 한계점 및 향후 과제
 
 | 한계 | 내용 |
 |------|------|
@@ -259,3 +319,5 @@ loss = 1 - cosine_similarity(
 | FRR 미측정 | 방어가 정상 이미지 인증에 미치는 영향(FRR 변화) 미측정 |
 | Adversarial Training 미완 | verification loss 기반 재학습 미진행 |
 | 생성형 방어 미구현 | DAE / DiffPure 등 생성형 정화 방어 미적용 |
+
+---
