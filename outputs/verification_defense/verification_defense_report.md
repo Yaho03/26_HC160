@@ -1,25 +1,5 @@
 # Verification 기반 방어 평가 보고서
 
-## 1. 공격팀 요구사항 및 이행 내역
-
-### 공격팀 요구사항 원문
-
-```
-패키지 안의 attack_handoff_index.csv를 기준으로 보시면 됩니다.
-각 row의 adv_file을 방어 입력으로 사용하고,
-방어 후 defended_file과 target_enroll_file의 FaceNet cosine similarity를 계산해 주세요.
-
-threshold 이상이면 공격 유지,
-threshold 미만이면 방어 성공입니다.
-
-우선 eps=0.005와 eps=0.010의 successful attack samples만 포함했고,
-총 212개 샘플입니다.
-Missing files는 0으로 확인했습니다.
-
-반환해주면 좋은 파일:
-- facenet_verification_defense_results.csv
-```
-
 ### 이행 내역
 
 | 요구사항 | 이행 방법 | 관련 파일 |
