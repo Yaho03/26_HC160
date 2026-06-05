@@ -155,4 +155,8 @@ dependencies:
       - websocket-client==1.9.0
       - werkzeug==3.1.8
       - widgetsnbextension==4.0.15
+      - facenet-pytorch
+      - diffusers
+      - accelerate
+      - gradio
 prefix: /opt/homebrew/Caskroom/miniconda/base/envs/hanium-aml

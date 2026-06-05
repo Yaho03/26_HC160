@@ -20,3 +20,14 @@ data/
 *.zip
 *.pt
 .DS_Store
+
+# temp result drops and personal/large folders
+tmp_defense_results/
+tmp_defense_results_latest/
+tmp_verification_defense_latest/
+demo/
+reference/
+docs/발표자료/
+docs/선행학습자료/
+docs/수행계획서/
+docs/회의록/

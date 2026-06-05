@@ -1,4 +1,4 @@
-"""Targeted PGD impersonation attack against a FaceNet-style verifier."""
+"""Targeted FGSM impersonation attack against a FaceNet-style verifier."""
 
 from __future__ import annotations
 
@@ -47,19 +47,16 @@ def write_rows(rows: list[dict[str, object]], path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Targeted PGD attack for FaceNet verification.")
+    parser = argparse.ArgumentParser(description="Targeted FGSM attack for FaceNet verification.")
     parser.add_argument("--pairs", type=Path, default=Path("outputs/verification/lfw_test_pairs.csv"))
     parser.add_argument("--metrics", type=Path, default=Path("outputs/verification_facenet/verification_metrics.json"))
     parser.add_argument("--threshold", type=float, default=None)
     parser.add_argument("--pretrained", default="vggface2", choices=["vggface2", "casia-webface"])
-    parser.add_argument("--out-dir", type=Path, default=Path("outputs/verification_attacks_facenet/pgd"))
+    parser.add_argument("--out-dir", type=Path, default=Path("outputs/verification_attacks_facenet/fgsm"))
     parser.add_argument("--epsilon", type=float, default=0.03)
-    parser.add_argument("--alpha", type=float, default=0.003)
-    parser.add_argument("--steps", type=int, default=10)
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--include-positive-pairs", action="store_true")
     parser.add_argument("--only-initial-rejects", action="store_true")
-    parser.add_argument("--random-start", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--image-format", default="png", choices=["png", "jpg"],
                         help="Format for saved adversarial and perturbation images (default: png).")
     args = parser.parse_args()
@@ -82,7 +79,7 @@ def main() -> None:
 
     rows: list[dict[str, object]] = []
     skipped_initial_accepts = 0
-    for row in tqdm(pairs, desc="targeted facenet verification PGD"):
+    for row in tqdm(pairs, desc="targeted facenet verification FGSM"):
         if args.limit > 0 and len(rows) >= args.limit:
             break
 
@@ -102,21 +99,14 @@ def main() -> None:
             skipped_initial_accepts += 1
             continue
 
-        if args.random_start:
-            adv = (source + torch.empty_like(source).uniform_(-args.epsilon, args.epsilon)).clamp(0, 1)
-        else:
-            adv = source.clone().detach()
-
-        for _ in range(args.steps):
-            adv = adv.clone().detach().requires_grad_(True)
-            adv_emb = facenet_embedding(model, adv)
-            similarity = F.cosine_similarity(adv_emb, target_emb).mean()
-            loss = 1.0 - similarity
-            model.zero_grad(set_to_none=True)
-            loss.backward()
-            adv = adv - args.alpha * adv.grad.sign()
-            delta = torch.clamp(adv - source, min=-args.epsilon, max=args.epsilon)
-            adv = (source + delta).detach().clamp(0, 1)
+        # FGSM: single gradient step toward target embedding
+        adv = source.clone().detach().requires_grad_(True)
+        adv_emb = facenet_embedding(model, adv)
+        loss = 1.0 - F.cosine_similarity(adv_emb, target_emb).mean()
+        model.zero_grad(set_to_none=True)
+        loss.backward()
+        # subtract because we minimize loss (maximize similarity to target)
+        adv = (source - args.epsilon * adv.grad.sign()).detach().clamp(0, 1)
 
         with torch.no_grad():
             adv_emb = facenet_embedding(model, adv)
@@ -133,7 +123,7 @@ def main() -> None:
 
         suffix = (
             f"{safe_stem(source_path)}_to_{safe_stem(target_path)}"
-            f"_facenet_eps{args.epsilon:.3f}_a{args.alpha:.3f}_s{args.steps}"
+            f"_facenet_fgsm_eps{args.epsilon:.3f}"
         )
         adv_path = image_dir / f"{suffix}.{args.image_format}"
         perturb_path = perturb_dir / f"{suffix}_perturbation.{args.image_format}"
@@ -146,7 +136,7 @@ def main() -> None:
             "target_enroll_file": str(target_path),
             "adv_file": str(adv_path),
             "perturbation_file": str(perturb_path),
-            "attack": "targeted_pgd_facenet_verification",
+            "attack": "targeted_fgsm_facenet_verification",
             "model": "facenet-pytorch/InceptionResnetV1",
             "pretrained": args.pretrained,
             "source_label": row["left_label"],
@@ -163,9 +153,9 @@ def main() -> None:
             "attack_success": attack_success,
             "success_from_reject": success_from_reject,
             "epsilon": args.epsilon,
-            "alpha": args.alpha,
-            "steps": args.steps,
-            "random_start": args.random_start,
+            "alpha": args.epsilon,
+            "steps": 1,
+            "random_start": False,
             "only_initial_rejects": args.only_initial_rejects,
             "l0": l0,
             "l2": l2,
@@ -173,10 +163,7 @@ def main() -> None:
             "time_sec": elapsed,
         })
 
-    metadata_path = args.out_dir / (
-        f"metadata_targeted_pgd_facenet_verification_eps{args.epsilon:.3f}"
-        f"_alpha{args.alpha:.3f}_steps{args.steps}.csv"
-    )
+    metadata_path = args.out_dir / f"metadata_targeted_fgsm_facenet_verification_eps{args.epsilon:.3f}.csv"
     write_rows(rows, metadata_path)
 
     attack_success_rate = sum(bool(row["attack_success"]) for row in rows) / len(rows)
