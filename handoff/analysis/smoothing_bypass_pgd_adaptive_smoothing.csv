@@ -1,0 +1,4 @@
+metadata_file,defense,radius,threshold,evaluated,raw_success,defended_accept,bypass_rate,defense_success,avg_sim_raw,avg_sim_defended
+outputs/verification_attacks_facenet/pgd_adaptive_smoothing/metadata_targeted_pgd_facenet_adaptive_smoothing_eps0.005_s20.csv,smoothing,3.0,0.479662,100,3,0,0.0,1.0,0.19897,0.311424
+outputs/verification_attacks_facenet/pgd_adaptive_smoothing/metadata_targeted_pgd_facenet_adaptive_smoothing_eps0.010_s20.csv,smoothing,3.0,0.479662,100,6,4,0.6667,0.3333,0.24156,0.419706
+outputs/verification_attacks_facenet/pgd_adaptive_smoothing/metadata_targeted_pgd_facenet_adaptive_smoothing_eps0.020_s20.csv,smoothing,3.0,0.479662,100,25,24,0.96,0.04,0.342258,0.601619
