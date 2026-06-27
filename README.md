@@ -107,6 +107,7 @@ Open `notebooks/colab_defense_pipeline.ipynb` in Colab and run all cells.
 | JPEG Compression | `src/defenses/defense_jpeg.py` | `--quality 75` | 전처리 |
 | Gaussian Blur | `src/defenses/defense_smoothing.py` | `--radius 3` (PIL GaussianBlur) | 전처리 |
 | Bit-depth Reduction | `src/defenses/defense_bitdepth.py` | `--bits 4` | 전처리 |
+| ROI-first | `src/defenses/defense_roi.py` | `--mode attenuate --attenuate-factor 0.3 --margin 0.15` | 전처리 (공격 표면 축소) |
 | Adversarial Training | `src/defenses/defense_adv_training.py` | `--attack-family pgd --epochs 5 --mix-ratio 0.5` | 모델 재학습 |
 
 각 스크립트는 `--attack-family` 옵션으로 특정 공격만 필터링할 수 있으며, 생략하면 5종 공격 전체에 적용됩니다.
@@ -114,22 +115,25 @@ Open `notebooks/colab_defense_pipeline.ipynb` in Colab and run all cells.
 ## 실행
 
 ```bash
-# 전처리 방어 3종 일괄 실행
+# 전처리 방어 4종 일괄 실행
 python -m src.defenses.defense_jpeg      --quality 75
 python -m src.defenses.defense_smoothing --radius 3
 python -m src.defenses.defense_bitdepth  --bits 4
+python -m src.defenses.defense_roi       --mode attenuate --attenuate-factor 0.3 --margin 0.15
 
 # 적대적 학습 (시간 오래 걸림)
 python -m src.defenses.defense_adv_training \
     --attack-family pgd --epochs 5 --mix-ratio 0.5
 
-python -m src.defenses.summarize_defense
+python -m src.reports.summarize_defense
 ```
 
 Defense source modules:
 
-- `src/defenses/run_preprocessing_defenses.py`: 전처리 방어 3종 일괄 실행 오케스트레이터
-- `src/defenses/plot_results.py`: 결과 로드 / 집계 / 시각화 / 보고서 생성
+- `src/defenses/run_preprocessing_defenses.py`: 전처리 방어 4종 일괄 실행 오케스트레이터
+- `src/reports/plot_defense_results.py`: 결과 로드 / 집계 / 시각화 / 보고서 생성
+
+Verification 방어 평가 모듈은 `src/verification/defenses/`로 분리되어 있습니다 (FaceNet 임베딩 기반 cosine similarity 평가, classification 방어와 별도 트랙).
 
 ## 실험 결과
 
