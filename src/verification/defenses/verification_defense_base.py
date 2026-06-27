@@ -16,7 +16,7 @@ from typing import Callable
 from PIL import Image
 from tqdm import tqdm
 
-from src.defenses.facenet_embed import get_embedding, cosine_similarity
+from src.verification.defenses.facenet_embed import get_embedding, cosine_similarity
 
 
 THRESHOLD = 0.47966246581077576  # EER 기준 (verification_metrics.json)

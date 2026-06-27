@@ -1,7 +1,7 @@
 """Load defense result CSVs and generate summary stats, plots, and a markdown report.
 
 Usage from Colab notebook:
-    from src.defenses.plot_results import load_results, compute_summary, plot_all, generate_report
+    from src.reports.plot_defense_results import load_results, compute_summary, plot_all, generate_report
 
     df      = load_results(results_dir)
     summary = compute_summary(df)

@@ -4,7 +4,7 @@ Verification 기반 Gaussian Smoothing 방어
 adv 이미지에 Gaussian Blur 를 적용한 뒤 FaceNet cosine similarity 로 평가한다.
 
 실행:
-    python -m src.defenses.verification_defense_smoothing \\
+    python -m src.verification.defenses.verification_defense_smoothing \\
         --index <attack_handoff_index.csv> \\
         --pkg-root <패키지 루트> \\
         [--radius 3] \\
@@ -17,7 +17,7 @@ import argparse
 
 from PIL import Image, ImageFilter
 
-from src.defenses.verification_defense_base import run_verification_defense
+from src.verification.defenses.verification_defense_base import run_verification_defense
 
 # ── 기본 파라미터 ─────────────────────────────────────────────────────────────
 DEFAULT_RADIUS = 3.0

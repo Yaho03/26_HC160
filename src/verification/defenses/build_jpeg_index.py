@@ -11,7 +11,7 @@ JPEG 파일 기준으로 재계산이 필요한 컬럼 2개를 업데이트한�
 나머지 컬럼은 원본 그대로 유지한다.
 
 실행:
-    python -m src.defenses.build_jpeg_index \\
+    python -m src.verification.defenses.build_jpeg_index \\
         --index <attack_handoff_index.csv> \\
         --pkg-root <패키지 루트> \\
         --out <저장 경로/attack_handoff_jpeg_index.csv>
@@ -26,7 +26,7 @@ import os
 from PIL import Image
 from tqdm import tqdm
 
-from src.defenses.facenet_embed import get_embedding, cosine_similarity
+from src.verification.defenses.facenet_embed import get_embedding, cosine_similarity
 
 
 def build_jpeg_index(

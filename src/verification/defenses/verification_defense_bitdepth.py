@@ -5,7 +5,7 @@ adv 이미지의 색상 비트 수를 줄여 perturbation 을 제거한 뒤
 FaceNet cosine similarity 로 평가한다.
 
 실행:
-    python -m src.defenses.verification_defense_bitdepth \\
+    python -m src.verification.defenses.verification_defense_bitdepth \\
         --index <attack_handoff_index.csv> \\
         --pkg-root <패키지 루트> \\
         [--bits 4] \\
@@ -19,7 +19,7 @@ import argparse
 import numpy as np
 from PIL import Image
 
-from src.defenses.verification_defense_base import run_verification_defense
+from src.verification.defenses.verification_defense_base import run_verification_defense
 
 # ── 기본 파라미터 ─────────────────────────────────────────────────────────────
 DEFAULT_BITS = 4
