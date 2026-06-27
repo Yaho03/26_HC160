@@ -94,25 +94,28 @@ Target Conf Drop     = target_conf_before - target_conf_after 평균
 Defense Time         = defense_time_sec 평균
 ```
 
-집계는 `src/defenses/summarize_defense.py` 로 수행한다.
+집계는 `src/reports/summarize_defense.py` 로 수행한다.
 
 ```bash
-python -m src.defenses.summarize_defense
+python -m src.reports.summarize_defense
 ```
 
 ## 실행
 
 ```bash
-# 전처리 방어 3종 (빠름, 수 분)
+# 전처리 방어 4종 (빠름, 수 분)
 python -m src.defenses.defense_jpeg      --quality 75
 python -m src.defenses.defense_smoothing --radius 3
 python -m src.defenses.defense_bitdepth  --bits 4
+python -m src.defenses.defense_roi       --mode attenuate --attenuate-factor 0.3 --margin 0.15
 
 # 적대적 학습 (느림, 30분~1시간)
 python -m src.defenses.defense_adv_training \
     --attack-family pgd --epochs 5 --mix-ratio 0.5
 
-python -m src.defenses.summarize_defense
+python -m src.reports.summarize_defense
 ```
+
+(참고: 2026-06-27 폴더 재배치로 verification 전용 방어 모듈은 `src/verification/defenses/`로, 결과 시각화/집계 모듈은 `src/reports/`로 이동했습니다.)
 
 Colab에서는 `notebooks/colab_defense_pipeline.ipynb` 를 사용한다.
