@@ -21,6 +21,7 @@ RESULT_FILES: dict[str, tuple[str, str]] = {
     "jpeg":         ("jpeg",         "jpeg_results_q75.csv"),
     "smoothing":    ("smoothing",    "smoothing_results_r3p0.csv"),
     "bitdepth":     ("bitdepth",     "bitdepth_results_4bit.csv"),
+    "roi":          ("roi",          "roi_results_attenuate.csv"),
     "adv_training": ("adv_training", "adv_training_results.csv"),
 }
 
@@ -30,10 +31,11 @@ DEFENSE_LABELS: dict[str, str] = {
     "jpeg":               "JPEG (q=75)",
     "gaussian_smoothing": "Gaussian (r=3)",
     "bit_depth":          "Bit-depth (4bit)",
+    "roi_first":          "ROI-first (attenuate)",
     "adv_training":       "Adv. Training (PGD)",
 }
 
-COLORS = ["#4C72B0", "#55A868", "#C44E52", "#DD8452"]
+COLORS = ["#4C72B0", "#55A868", "#C44E52", "#937860", "#DD8452"]
 
 
 # ──────────────────────────────────────────────
@@ -95,7 +97,7 @@ def compute_summary(df: pd.DataFrame) -> pd.DataFrame:
 def plot_heatmap(summary: pd.DataFrame, figures_dir: str) -> None:
     """방어 성공률 & 복원율 Heatmap."""
     fig, axes = plt.subplots(1, 2, figsize=(14, 4))
-    fig.suptitle("Defense Evaluation — 5 Attacks × 3 Defenses", fontsize=13, fontweight="bold")
+    fig.suptitle("Defense Evaluation — 5 Attacks × 4 Defenses", fontsize=13, fontweight="bold")
 
     for ax, metric, title, cmap in zip(
         axes,
@@ -229,6 +231,7 @@ def generate_report(summary: pd.DataFrame, results_dir: str) -> None:
 | JPEG 압축      | quality = 75 |
 | Gaussian blur  | radius = 3 |
 | Bit-depth 축소 | bits = 4 |
+| ROI-first      | mode = attenuate, factor = 0.3, margin = 0.15 |
 
 {pivot_md('defense_rate_%', '방어 성공률 (%)')}
 
