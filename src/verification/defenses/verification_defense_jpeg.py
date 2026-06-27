@@ -4,7 +4,7 @@ Verification 기반 JPEG 압축 방어
 adv 이미지에 JPEG 압축을 적용한 뒤 FaceNet cosine similarity 로 평가한다.
 
 실행:
-    python -m src.defenses.verification_defense_jpeg \\
+    python -m src.verification.defenses.verification_defense_jpeg \\
         --index <attack_handoff_index.csv> \\
         --pkg-root <패키지 루트> \\
         [--quality 75] \\
@@ -18,7 +18,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from src.defenses.verification_defense_base import run_verification_defense
+from src.verification.defenses.verification_defense_base import run_verification_defense
 
 # ── 기본 파라미터 ─────────────────────────────────────────────────────────────
 DEFAULT_QUALITY = 75

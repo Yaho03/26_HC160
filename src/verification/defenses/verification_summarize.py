@@ -5,7 +5,7 @@ outputs/verification_defense/ 아래 3종 결과 CSV를 읽어
 공격별 · 방어별 집계 테이블(verification_defense_summary.csv)을 생성한다.
 
 실행:
-    python -m src.defenses.verification_summarize \\
+    python -m src.verification.defenses.verification_summarize \\
         [--results-dir outputs/verification_defense] \\
         [--index <attack_handoff_index.csv>]
 """

@@ -10,7 +10,7 @@ verification_defense_summary.csv 를 읽어 그래프 3종과 마크다운 보�
   verification_defense_report.md       ← 마크다운 보고서
 
 실행:
-    python -m src.defenses.verification_plot \\
+    python -m src.verification.defenses.verification_plot \\
         [--results-dir outputs/verification_defense]
 """
 
