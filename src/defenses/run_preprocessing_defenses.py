@@ -1,4 +1,4 @@
-"""전처리 기반 방어 3종 실행 (JPEG / Gaussian Blur / Bit-depth).
+"""전처리 기반 방어 4종 실행 (JPEG / Gaussian Blur / Bit-depth / ROI-first).
 
 Usage from Colab notebook:
     import sys; sys.path.insert(0, REPO_DIR)
@@ -39,6 +39,12 @@ DEFENSE_CONFIGS: list[dict] = [
         args       = ["--bits", "4"],
         out_subdir = "bitdepth",
         label      = "Bit-depth Reduction (4-bit)",
+    ),
+    dict(
+        module     = "src.defenses.defense_roi",
+        args       = ["--mode", "attenuate", "--attenuate-factor", "0.3", "--margin", "0.15"],
+        out_subdir = "roi",
+        label      = "ROI-first (attenuate, margin=0.15)",
     ),
 ]
 
