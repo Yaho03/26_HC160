@@ -48,27 +48,62 @@
 
 ## 2. 기법별 역할 및 구현 상태
 
-| 기법 | 역할 | 단계 | 구현 상태 | 난이도 |
-|------|------|------|-----------|--------|
-| Temporal Consistency | 카메라 연속 프레임 분석, 정지 이미지·화면 재생 차단 | 1단계 | 미구현 | 중 |
-| ROI-first | Otsu 이진화로 얼굴 영역만 추출, 배경 perturbation 제거 | 2단계 | 미구현 | 중 |
-| Gaussian Smoothing | 고주파 perturbation 억제 | 2단계 | ✅ 완료 | 하 |
-| Randomized Smoothing | 가우시안 노이즈 반복 주입 후 평균 embedding, certified defense | 2단계 | 미구현 | 상 |
-| Ensemble Voting | 3종 방어 결과 voting으로 최종 판정 | 2단계 | 미구현 | 중 |
-| Adversarial Training | FaceNet verification loss 기반 모델 재학습 | 3단계 | 미구현 (FaceNet 기준) | 상 |
-| Feature Squeezing | 여러 해상도로 squeezing 후 prediction 차이로 공격 탐지 | 4단계 | 미구현 | 중 |
-| JPEG 재압축 | 실험 baseline | baseline | ✅ 완료 | 하 |
-| Bit-depth Reduction | 실험 baseline | baseline | ✅ 완료 | 하 |
+| 기법 | 역할 | 단계 | 구현 상태 | 구현 파일 | 난이도 |
+|------|------|------|-----------|-----------|--------|
+| Temporal Consistency | 카메라 연속 프레임 분석, 정지 이미지·화면 재생 차단 | 1단계 | ✅ 완료 | `src/verification/defenses/verification_defense_temporal.py` | 중 |
+| ROI-first | Otsu 이진화로 얼굴 영역만 추출, 배경 perturbation 제거 | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_roi.py` | 중 |
+| Gaussian Smoothing | 고주파 perturbation 억제 | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_smoothing.py` | 하 |
+| Randomized Smoothing | 가우시안 노이즈 반복 주입 후 평균 embedding, certified defense | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_randomized_smoothing.py` | 상 |
+| Ensemble Voting | ROI-first·Smoothing·Randomized Smoothing 결과 voting으로 최종 판정 | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_ensemble.py` | 중 |
+| Adversarial Training | FaceNet verification loss 기반 모델 재학습 | 3단계 | 미구현 (FaceNet 기준) | - | 상 |
+| Feature Squeezing | 여러 해상도로 squeezing 후 prediction 차이로 공격 탐지 | 4단계 | 미구현 | - | 중 |
+| JPEG 재압축 | 실험 baseline | baseline | ✅ 완료 | `src/verification/defenses/verification_defense_jpeg.py` | 하 |
+| Bit-depth Reduction | 실험 baseline | baseline | ✅ 완료 | `src/verification/defenses/verification_defense_bitdepth.py` | 하 |
 
 ---
 
-## 3. 기법별 상세 설명
+## 3. 실험 결과 (212개 샘플, 방어 전 공격 성공 171개 기준)
+
+| 기법 | 방어 성공 | 공격 차단률 | 방어 후 공격 성공률 | 결과 파일 |
+|------|----------|------------|-------------------|-----------|
+| JPEG 재압축 (baseline) | - | - | - | `outputs/verification_defense/jpeg/` |
+| Bit-depth Reduction (baseline) | - | - | - | `outputs/verification_defense/bitdepth/` |
+| Gaussian Smoothing | - | - | - | `outputs/verification_defense/smoothing/` |
+| Temporal Consistency (1단계) | 171/171 | 100.0% | 0.0% | `outputs/verification_defense/temporal/` |
+| ROI-first (2단계) | 127/171 | 74.3% | 19.3% | `outputs/verification_defense/roi_first/` |
+| Randomized Smoothing (2단계) | 69/171 | 40.4% | 48.1% | `outputs/verification_defense/randomized_smoothing/` |
+| **Ensemble Voting (2단계)** | **131/171** | **76.6%** | **18.9%** | `outputs/verification_defense/ensemble/` |
+| **1+2단계 파이프라인** | **171/171** | **100.0%** | **0.0%** | - |
+
+> Temporal Consistency 100% 탐지는 테스트셋 전체가 JPEG 정지 이미지이기 때문.
+> 실제 서비스 환경(카메라 입력) 기준으로는 static_thresh 재조정 필요.
+> 실질적 방어 성능 지표는 Ensemble Voting 76.6% 차단 기준.
+
+---
+
+## 4. 기법별 상세 설명
 
 ### 1단계: Temporal Consistency
-- 카메라에서 연속 N프레임 촬영
-- 프레임마다 FaceNet embedding 추출
-- 프레임 간 embedding 변화량이 자연스러운 움직임 범위를 벗어나면 거부
+
+#### 구현 방식: B. 시뮬레이션 기반 (현재 적용)
+
+현재 데이터(212개 JPEG 샘플)로 즉시 테스트 가능한 시뮬레이션 방식으로 구현됨.
+
+- 단일 이미지에 미세한 회전(±5°)·밝기(±15%)·대비(±10%) 변화를 N회 적용해 연속 프레임을 생성함
+- 정상 이미지: 자연스럽게 embedding이 변하므로 std가 상대적으로 높음
+- 공격 이미지(JPEG 단일 최적화 이미지): 동일 이미지를 augmentation해도 embedding 변화가 거의 없음 → 정지 이미지 특성 그대로 탐지됨
+- `embedding_std < static_thresh(0.015)` → 정지 이미지로 판정, 즉시 거부
+- 파라미터: `n_frames=10`, `static_thresh=0.015`, `threshold=0.47966`
 - 대응 공격: 정지 이미지, 화면 재생, 프린트 어택
+
+#### 향후 전환 필요: A. 실제 카메라 스트림 기반
+
+시뮬레이션 방식은 검증 목적이며, 실서비스 적용 시 아래와 같이 전환해야 함.
+
+- 카메라에서 실제 연속 N프레임을 촬영하여 각 프레임의 FaceNet embedding을 추출함
+- 실제 사용자는 촬영 중 자연스러운 미세 움직임(고개 각도, 조명 변화)이 발생하므로 embedding std가 시뮬레이션보다 높게 측정됨
+- 이를 기준으로 `static_thresh` 재캘리브레이션 필요 (현재 0.015는 시뮬레이션 전용 값)
+- 실제 환경에서는 정상 사용자 false positive 발생 가능성 제거를 위해 threshold 상향 조정 예정
 
 ### 2단계: ROI-first
 - Otsu 이진화로 얼굴 영역 자동 마스킹
@@ -80,12 +115,14 @@
 - 입력 이미지에 가우시안 노이즈를 N회 반복 주입
 - N개 embedding의 평균으로 cosine similarity 계산
 - 수학적으로 certified defense 가능 (특정 반경 내 공격 보장 방어)
-- 한계: 연산량 증가 (N회 forward pass)
+- 파라미터: `n_samples=50`, `sigma=0.05`
+- 한계: 연산량 증가 (N회 forward pass), JPEG 이미지 기준 차단률 40.4%
 
 ### 2단계: Ensemble Voting
 - ROI-first, Gaussian Smoothing, Randomized Smoothing 3종 결과를 voting
-- 과반수(2/3 이상) reject이면 최종 거부
+- 과반수(2/3 이상) accept이어야 최종 인증 통과, 그 외 거부
 - 단일 방어 우회해도 나머지로 차단 가능
+- 실험 결과 차단률 76.6% (단독 최고인 ROI-first 74.3%보다 향상)
 
 ### 3단계: Adversarial Training
 - FaceNet verification loss: `1 - cosine_sim(emb(adv), emb(clean))`
@@ -99,7 +136,7 @@
 
 ---
 
-## 4. 실험 baseline vs 실무 파이프라인 비교
+## 5. 실험 baseline vs 실무 파이프라인 비교
 
 | 구분 | 실험 baseline | 실무 파이프라인 |
 |------|--------------|----------------|
@@ -110,7 +147,7 @@
 
 ---
 
-## 5. 데이터 스키마 설계
+## 6. 데이터 스키마 설계
 
 전체 파이프라인 구현 시 필요한 테이블 구조. `DB_SCHEMA.md`의 기존 테이블에 추가되는 내용.
 
