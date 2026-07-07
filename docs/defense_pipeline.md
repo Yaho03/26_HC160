@@ -56,7 +56,7 @@
 | Randomized Smoothing | 가우시안 노이즈 반복 주입 후 평균 embedding, certified defense | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_randomized_smoothing.py` | 상 |
 | Ensemble Voting | ROI-first·Smoothing·Randomized Smoothing 결과 voting으로 최종 판정 | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_ensemble.py` | 중 |
 | Adversarial Training | FaceNet verification loss 기반 모델 재학습 | 3단계 | ✅ 완료 | `src/verification/defenses/verification_defense_adv_training.py` | 상 |
-| Feature Squeezing | 여러 해상도로 squeezing 후 prediction 차이로 공격 탐지 | 4단계 | 미구현 | - | 중 |
+| Feature Squeezing | 여러 해상도로 squeezing 후 prediction 차이로 공격 탐지 | 4단계 | ✅ 완료 | `src/verification/defenses/verification_defense_feature_squeezing.py` | 중 |
 | JPEG 재압축 | 실험 baseline | baseline | ✅ 완료 | `src/verification/defenses/verification_defense_jpeg.py` | 하 |
 | Bit-depth Reduction | 실험 baseline | baseline | ✅ 완료 | `src/verification/defenses/verification_defense_bitdepth.py` | 하 |
 
@@ -75,10 +75,12 @@
 | **Ensemble Voting (2단계)** | **131/171** | **76.6%** | **18.9%** | `outputs/verification_defense/ensemble/` |
 | **1+2단계 파이프라인** | **171/171** | **100.0%** | **0.0%** | - |
 | **Adversarial Training (3단계)** | **208/212** | **98.1%** | **1.9%** | `outputs/verification_defense/adv_training/` |
+| **Feature Squeezing (4단계)** | **탐지 212/212** | **100.0%** | - (탐지 전용) | `outputs/verification_defense/feature_squeezing/` |
 
 > Temporal Consistency 100% 탐지는 테스트셋 전체가 JPEG 정지 이미지이기 때문.
 > 실제 서비스 환경(카메라 입력) 기준으로는 static_thresh 재조정 필요.
 > 실질적 방어 성능 지표: Ensemble Voting 76.6% / Adversarial Training 98.1% 차단 기준.
+> Feature Squeezing은 차단이 아닌 탐지 목적 — low_resolution 100%, median_filter 73.1%, color_depth 43.9%.
 
 ---
 
@@ -135,9 +137,15 @@
 - checkpoint: `outputs/verification_defense/adv_training/best_adv_trained.pt`
 
 ### 4단계: Feature Squeezing
-- 원본 이미지와 squeezed 이미지(저해상도, 색상 축소 등)의 prediction 차이 측정
-- 차이가 크면 공격으로 탐지
-- 방어가 아닌 탐지 목적 → risk_score에 반영
+- 원본 이미지와 squeezed 이미지의 FaceNet similarity 차이(`sim_diff`)로 공격 탐지
+- `sim_diff >= detection_threshold(0.05)` → 공격 탐지, risk_score_add +10점/squeezer (최대 +30)
+- 방어(차단)가 아닌 탐지 목적 → 대시보드 risk_score에 반영
+- Squeezer 3종: `low_resolution`(32×32 축소복원) / `color_depth`(4비트 양자화) / `median_filter`(3×3 미디언)
+- 실험 결과 (detection_threshold=0.05):
+  - low_resolution: 212/212 (100%)
+  - median_filter:  155/212 (73.1%)
+  - color_depth:    93/212  (43.9%)
+  - 전체 탐지(1개 이상): 212/212 (100%)
 
 ---
 
