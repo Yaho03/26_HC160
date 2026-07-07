@@ -55,7 +55,7 @@
 | Gaussian Smoothing | 고주파 perturbation 억제 | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_smoothing.py` | 하 |
 | Randomized Smoothing | 가우시안 노이즈 반복 주입 후 평균 embedding, certified defense | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_randomized_smoothing.py` | 상 |
 | Ensemble Voting | ROI-first·Smoothing·Randomized Smoothing 결과 voting으로 최종 판정 | 2단계 | ✅ 완료 | `src/verification/defenses/verification_defense_ensemble.py` | 중 |
-| Adversarial Training | FaceNet verification loss 기반 모델 재학습 | 3단계 | 미구현 (FaceNet 기준) | - | 상 |
+| Adversarial Training | FaceNet verification loss 기반 모델 재학습 | 3단계 | ✅ 완료 | `src/verification/defenses/verification_defense_adv_training.py` | 상 |
 | Feature Squeezing | 여러 해상도로 squeezing 후 prediction 차이로 공격 탐지 | 4단계 | 미구현 | - | 중 |
 | JPEG 재압축 | 실험 baseline | baseline | ✅ 완료 | `src/verification/defenses/verification_defense_jpeg.py` | 하 |
 | Bit-depth Reduction | 실험 baseline | baseline | ✅ 완료 | `src/verification/defenses/verification_defense_bitdepth.py` | 하 |
@@ -74,10 +74,11 @@
 | Randomized Smoothing (2단계) | 69/171 | 40.4% | 48.1% | `outputs/verification_defense/randomized_smoothing/` |
 | **Ensemble Voting (2단계)** | **131/171** | **76.6%** | **18.9%** | `outputs/verification_defense/ensemble/` |
 | **1+2단계 파이프라인** | **171/171** | **100.0%** | **0.0%** | - |
+| **Adversarial Training (3단계)** | **208/212** | **98.1%** | **1.9%** | `outputs/verification_defense/adv_training/` |
 
 > Temporal Consistency 100% 탐지는 테스트셋 전체가 JPEG 정지 이미지이기 때문.
 > 실제 서비스 환경(카메라 입력) 기준으로는 static_thresh 재조정 필요.
-> 실질적 방어 성능 지표는 Ensemble Voting 76.6% 차단 기준.
+> 실질적 방어 성능 지표: Ensemble Voting 76.6% / Adversarial Training 98.1% 차단 기준.
 
 ---
 
@@ -125,9 +126,13 @@
 - 실험 결과 차단률 76.6% (단독 최고인 ROI-first 74.3%보다 향상)
 
 ### 3단계: Adversarial Training
-- FaceNet verification loss: `1 - cosine_sim(emb(adv), emb(clean))`
-- 공격 샘플을 학습 데이터로 섞어 모델 자체를 강화
-- 필요 조건: 공격팀 PNG 포맷 샘플 500쌍 이상
+- (adv, source, target_enroll) 트리플릿으로 InceptionResnetV1 fine-tune
+- Loss: `max(0, cos(adv, target) - cos(adv, source) + margin)` — adv를 source처럼, target에서 멀어지게 학습
+- block8 + last_linear + last_bn만 unfreeze (전체 9%, 212개 샘플 과적합 방지)
+- 파라미터: `epochs=5`, `lr=1e-5`, `batch=8`, `margin=0.15`
+- 학습 데이터: 공격팀 handoff 패키지 212개 JPEG 트리플릿
+- 실험 결과: ASR 80.7% → 1.9%, 방어 성공 208/212 (98.1%)
+- checkpoint: `outputs/verification_defense/adv_training/best_adv_trained.pt`
 
 ### 4단계: Feature Squeezing
 - 원본 이미지와 squeezed 이미지(저해상도, 색상 축소 등)의 prediction 차이 측정
