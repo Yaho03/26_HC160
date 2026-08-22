@@ -1,0 +1,15 @@
+schema_version: "1.0"
+model_id: facenet-inception-resnet-v1-vggface2
+task: face_verification
+implementation: facenet_pytorch.InceptionResnetV1
+weights: vggface2
+embedding_dimension: 512
+input:
+  image_size: [160, 160]
+  color_space: RGB
+threshold:
+  source: calibration_required
+  value: null
+notes:
+  - Record the exact package and weight artifact versions at run time.
+  - Calibrate a threshold on the designated validation split; never copy a threshold from another model.
