@@ -1,0 +1,22 @@
+schema_version: "1.0"
+experiment_id: verification-clean-baseline
+task: face_verification
+model_config: configs/models/facenet-vggface2.yaml
+pair_manifest: data/splits/verification-test-pairs.jsonl
+calibration_pair_manifest: data/splits/verification-validation-pairs.jsonl
+distance_metric: euclidean
+threshold_policy:
+  method: validation_target_far
+  target_far: 0.001
+report:
+  confidence_interval: wilson_95
+  metrics:
+    - far
+    - frr
+    - tar
+    - accuracy
+    - eer
+    - threshold
+reproducibility:
+  seed: 20260822
+  save_pair_level_records: true

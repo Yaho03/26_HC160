@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/defense-result.schema.json",
+  "title": "HC160 defense result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "defense_result_id",
+    "run_id",
+    "input_kind",
+    "defense_id",
+    "defense_kind",
+    "defense_params",
+    "similarity_before",
+    "similarity_after",
+    "accepted_before",
+    "accepted_after",
+    "elapsed_ms",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "defense_result_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "input_kind": {"enum": ["attack", "clean"]},
+    "attack_result_id": {"type": ["string", "null"]},
+    "clean_pair_id": {"type": ["string", "null"]},
+    "defense_id": {"type": "string", "minLength": 1},
+    "defense_kind": {"enum": ["transform", "trained", "ensemble", "temporal", "detector"]},
+    "defense_params": {"type": "object"},
+    "similarity_before": {"type": "number"},
+    "similarity_after": {"type": "number"},
+    "accepted_before": {"type": "boolean"},
+    "accepted_after": {"type": "boolean"},
+    "defense_success": {"type": ["boolean", "null"]},
+    "elapsed_ms": {"type": "number", "minimum": 0},
+    "status": {"enum": ["ok", "failed", "timeout", "error"]},
+    "output_artifact_id": {"type": ["string", "null"]},
+    "checkpoint_artifact_id": {"type": ["string", "null"]},
+    "error_code": {"type": ["string", "null"]}
+  },
+  "oneOf": [
+    {
+      "properties": {"input_kind": {"const": "attack"}, "attack_result_id": {"type": "string"}, "clean_pair_id": {"type": "null"}, "defense_success": {"type": "boolean"}},
+      "required": ["attack_result_id", "clean_pair_id", "defense_success"]
+    },
+    {
+      "properties": {"input_kind": {"const": "clean"}, "attack_result_id": {"type": "null"}, "clean_pair_id": {"type": "string"}, "defense_success": {"type": "null"}},
+      "required": ["attack_result_id", "clean_pair_id", "defense_success"]
+    }
+  ]
+}
