@@ -2,6 +2,42 @@
 
 Issues remain as reviewable specifications until approved for creation in GitHub.
 
+## Status legend
+
+- **Implemented**: code and automated contract tests exist.
+- **Partial**: a code path exists, but an external artifact, target-device calibration, or required experiment is missing.
+- **Pending**: no complete implementation/evidence exists yet.
+
+## Implementation snapshot (commit `d1b96ba`)
+
+| ID | Status | Evidence or remaining blocker |
+|---|---|---|
+| DOC-001 | Implemented | Scope, API contract, threat model, module map, and limitations documented. |
+| EVAL-001 | Partial | Legacy limitations are documented; old claims have not been rerun on corrected held-out data. |
+| DEP-001 | Partial | Python dependencies are pinned; external model checksums and full clean-checkout bootstrap remain. |
+| EXP-001 | Partial | Dataset manifest and leakage validator exist; final subject/session/device-disjoint dataset is not built. |
+| ARCH-001 | Implemented | State, gate, policy, and fail-closed integration tests pass. |
+| SEC-001 | Partial | Enrollment separation and token lifecycle exist; encrypted persistent template storage does not. |
+| ATK-001 | Implemented | Manifest-driven replay/insertion runner and tests exist. |
+| FR-101 | Implemented | Nonce, challenge, state, expiry, and replay behavior are tested. |
+| FR-102 | Implemented | Webcam/video share `FrameSource`; bounded latest-frame buffering and drops are tested. |
+| FR-103 | Implemented | Quality failure is retryable and distinct from model errors. |
+| FR-104 | Implemented | MTCNN retains all detections and multi-face evidence fails closed. |
+| FR-105 | Partial | Multi-frame template and verification exist; final identity threshold artifact is pending. |
+| FR-106 | Implemented | Required failures/errors/NOT_EVALUATED cannot verify. |
+| FR-107 | Implemented | Token context, expiry, replay, and one-time consume are tested. |
+| EXP-002 | Implemented for synthetic tests | Genuine/impostor/multi-face/quality/error cases are automated; target-device evidence remains. |
+| FR-201 | Partial | PAD adapter, manifest validator, video evaluator, APCER/BPCER and species metrics exist; validated checkpoint and held-out physical data are missing. |
+| FR-202 | Partial | Random challenge logic exists; physical replay/accessibility evaluation is pending. |
+| FR-203 | Partial | Tracking and template continuity exist; held-out switch/occlusion study is pending. |
+| EXP-201 | Pending | Physical print/screen/replay dataset and report are absent. |
+| EXP-202 | Partial | Synthetic insertion scenario passes; physical/person-switch matrix and delay report are absent. |
+| FR-301 | Partial | Optional transform-consistency veto exists; clean/adaptive calibration is pending. |
+| FR-302 | Pending | Correct held-out adversarial-training rerun is not implemented. |
+| EXP-301 | Pending | Digital/screen/print transfer comparison is absent. |
+| PERF-001 | Pending | Named-hardware FPS/drop/P95 report is absent. |
+| SEC-301 | Pending | Mobile attestation provider boundary is documented but not implemented. |
+
 ## Phase 0
 
 | ID | Work | Acceptance criteria |
