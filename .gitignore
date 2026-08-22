@@ -25,4 +25,6 @@ local_templates/
 local_scenarios/
 local_thresholds/
 local_models/
+local_pad_dataset/
+local_pad_reports/
 *.npz
