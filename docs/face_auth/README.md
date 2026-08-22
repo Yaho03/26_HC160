@@ -37,7 +37,7 @@ session creation
 | `adapters/opencv_capture.py` | Recorded-video and webcam input. |
 | `inference/pipeline.py` | Baseline integrity, quality, all-face, and identity evidence. |
 | `inference/full_pipeline.py` | FULL-profile gate composition. |
-| `inference/pad_adapter.py` | Explicit TorchScript PAD model adapter; no heuristic pass fallback. |
+| `inference/pad_adapter.py` | Explicit TorchScript and ONNX PAD model adapters; no heuristic pass fallback. |
 | `inference/active_liveness.py` | Post-challenge head-turn or blink evidence. |
 | `inference/continuity.py` | Template-anchored multi-frame identity consistency. |
 | `inference/content_replay.py` | Frozen/repeated-content signal. |
@@ -45,9 +45,10 @@ session creation
 | `inference/adversarial_detector.py` | Transform-consistency optional veto. |
 | `evaluation/calibration.py` | Prototype gate-threshold calibration from validation CSV. |
 | `evaluation/pad_manifest.py` | Opaque, relative-path PAD video manifest validation. |
-| `evaluation/pad_evaluator.py` | Per-video face/quality/PAD evaluation with explicit excluded outcomes. |
+| `evaluation/pad_evaluator.py` | Per-video face/quality/PAD evaluation with source-video hashes and explicit excluded outcomes. |
 | `evaluation/pad_metrics.py` | APCER, BPCER, ACER, attack-species metrics and Wilson intervals. |
-| `evaluation/pad_cli.py` | Reproducible labeled-video PAD report command. |
+| `evaluation/pad_cli.py` | Reproducible, immutable-by-default labeled-video PAD report command. |
+| `../../schemas/pad-evaluation-report.schema.json` | Machine-readable PAD report and provenance contract. |
 | `cli.py` | Separate `enroll` and `authenticate` commands. |
 
 Attack-video generation is separate under `src/attack_scenarios/`.

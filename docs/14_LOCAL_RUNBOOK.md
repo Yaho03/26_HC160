@@ -35,6 +35,12 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-face-auth.txt
 ```
 
+Install the optional ONNX PAD runtime only when evaluating an approved ONNX checkpoint:
+
+```bash
+python -m pip install -r requirements-pad-onnx.txt
+```
+
 Do not commit `.venv`, downloaded weights, raw faces, embeddings, templates, or PAD models.
 
 ## 3. Validation commands
@@ -51,7 +57,7 @@ Full face-auth and research validation after installing dependencies:
 python -m unittest discover -s tests -v
 ```
 
-At the documented implementation snapshot the full command passed 113 tests on Python 3.9. Warning output from the test-only TorchScript trace is not a failure; any failed or errored test is.
+At the documented implementation snapshot the full command passed 126 tests on Python 3.9. Warning output from the test-only TorchScript trace is not a failure; any failed or errored test is.
 
 ## 4. Dataset manifest workflow
 
@@ -127,7 +133,7 @@ Use `--camera 0` instead of `--video` for a webcam. The baseline profile does no
 
 The FULL profile requires all of the following before invocation:
 
-- a validated TorchScript PAD model;
+- a validated TorchScript or supported ONNX PAD model;
 - PAD preprocessing and live-class semantics matching the CLI arguments;
 - identity, PAD, motion, continuity, and optional adversarial threshold versions;
 - enough post-challenge frames to evaluate active liveness;
@@ -143,16 +149,18 @@ The PAD manifest uses opaque subject/session/device tokens and separates calibra
 configs/pad_evaluation.example.csv
 ```
 
-After acquiring an approved TorchScript PAD model, select the threshold on calibration rows only:
+After acquiring an approved TorchScript or ONNX PAD model, select the threshold on calibration rows only. This TorchScript example uses the runtime default:
 
 ```bash
 python -m src.face_auth.evaluation.pad_cli \
   --mode calibrate \
   --manifest data/manifests/pad-evaluation.csv \
+  --manifest-id pad-evaluation-v1 \
   --artifact-root external_artifacts/pad \
   --pad-model local_models/pad-v1.ts \
   --pad-model-version pad-v1 \
   --threshold-version pad-validation-v1 \
+  --run-id run-pad-calibration-v1 \
   --split calibration \
   --max-bpcer 0.05 \
   --output outputs/pad/pad-calibration-v1.json
@@ -164,16 +172,22 @@ Freeze the reported threshold, then evaluate the untouched test split with:
 python -m src.face_auth.evaluation.pad_cli \
   --mode evaluate \
   --manifest data/manifests/pad-evaluation.csv \
+  --manifest-id pad-evaluation-v1 \
   --artifact-root external_artifacts/pad \
   --pad-model local_models/pad-v1.ts \
   --pad-model-version pad-v1 \
   --live-threshold 0.80 \
   --threshold-version pad-validation-v1 \
+  --run-id run-pad-test-v1 \
   --split test \
   --output outputs/pad/pad-test-v1.json
 ```
 
-The evaluator records sample outcomes, valid-frame counts, model/threshold versions, latency, APCER, BPCER, ACER, worst-species and per-species APCER, presentation/exclusion counts, and Wilson 95% intervals. Multi-face, insufficient-quality, load, and model failures are reported separately instead of being counted as PAD success.
+For the original Open Model Zoo `anti-spoof-mn3` ONNX artifact, add `--pad-runtime onnx`; the adapter then uses its documented 128x128 RGB input, class-zero bona-fide output, and mean/scale defaults. Override model-contract arguments only when the frozen checkpoint documentation requires it.
+
+The evaluator records sample outcomes, valid-frame counts, model/threshold versions, latency, APCER, BPCER, ACER, worst-species and per-species APCER, presentation/exclusion counts, and Wilson 95% intervals. It also binds the run to the Git commit, manifest/model SHA-256, and each selected source video's SHA-256 and byte count. Inputs are rechecked after evaluation so mid-run changes abort the report.
+
+Formal runs require a clean Git worktree and refuse an existing output path. `--allow-dirty` and `--overwrite` exist for explicit local debugging; do not use them for reportable experiments. Multi-face, insufficient-quality, load, and model failures are reported separately instead of being counted as PAD success.
 
 ## 9. Scenario and gate-threshold workflows
 
