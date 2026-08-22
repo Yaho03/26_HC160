@@ -21,6 +21,20 @@ class ContractValidationTest(unittest.TestCase):
                 data = json.loads(path.read_text(encoding="utf-8"))
                 self.assertEqual(data["$schema"], "https://json-schema.org/draft/2020-12/schema")
 
+    def test_pad_report_schema_requires_source_and_code_provenance(self):
+        schema_path = (
+            Path(__file__).resolve().parents[2]
+            / "schemas"
+            / "pad-evaluation-report.schema.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        self.assertIn("run_id", schema["required"])
+        self.assertIn("code", schema["required"])
+        self.assertIn("manifest", schema["required"])
+        sample_required = schema["$defs"]["sample"]["required"]
+        self.assertIn("video_sha256", sample_required)
+        self.assertIn("video_bytes", sample_required)
+
     def test_absolute_and_parent_paths_are_rejected(self):
         for invalid in ("/content/data/a.png", "C:\\data\\a.png", "../secret.png"):
             with self.subTest(path=invalid), self.assertRaises(ContractError):

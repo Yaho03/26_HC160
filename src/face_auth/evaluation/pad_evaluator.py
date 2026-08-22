@@ -5,6 +5,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from src.common.reproducibility import sha256_file
 from src.face_auth.adapters.opencv_capture import video_source
 from src.face_auth.domain import reason_codes
 from src.face_auth.domain.types import FramePacket, GateStatus
@@ -17,6 +18,8 @@ from src.face_auth.inference.quality import QualityGate
 class PADSampleResult:
     sample_id: str
     relative_video_path: str
+    video_sha256: str | None
+    video_bytes: int | None
     subject_token: str
     session_token: str
     device_token: str
@@ -62,6 +65,18 @@ class PADVideoEvaluator:
     ) -> PADSampleResult:
         started = time.perf_counter()
         try:
+            video_sha256 = sha256_file(video_path)
+            video_bytes = Path(video_path).stat().st_size
+        except OSError:
+            return self._result(
+                row,
+                "ERROR",
+                total_frames=0,
+                valid_face_frames=0,
+                reasons=(reason_codes.CAMERA_ERROR,),
+                started=started,
+            )
+        try:
             frames = _read_frames(video_path, self.max_frames)
         except Exception:
             return self._result(
@@ -71,8 +86,16 @@ class PADVideoEvaluator:
                 valid_face_frames=0,
                 reasons=(reason_codes.CAMERA_ERROR,),
                 started=started,
+                video_sha256=video_sha256,
+                video_bytes=video_bytes,
             )
-        return self.evaluate_frames(row, frames, started=started)
+        return self.evaluate_frames(
+            row,
+            frames,
+            started=started,
+            video_sha256=video_sha256,
+            video_bytes=video_bytes,
+        )
 
     def evaluate_frames(
         self,
@@ -80,6 +103,8 @@ class PADVideoEvaluator:
         frames: list[FramePacket],
         *,
         started: float | None = None,
+        video_sha256: str | None = None,
+        video_bytes: int | None = None,
     ) -> PADSampleResult:
         started = time.perf_counter() if started is None else started
         crops = []
@@ -95,6 +120,8 @@ class PADVideoEvaluator:
                     valid_face_frames=len(crops),
                     reasons=(reason_codes.MODEL_ERROR,),
                     started=started,
+                    video_sha256=video_sha256,
+                    video_bytes=video_bytes,
                 )
             if len(faces) > 1:
                 return self._result(
@@ -104,6 +131,8 @@ class PADVideoEvaluator:
                     valid_face_frames=len(crops),
                     reasons=(reason_codes.MULTIPLE_FACES,),
                     started=started,
+                    video_sha256=video_sha256,
+                    video_bytes=video_bytes,
                 )
             if not faces:
                 invalid_reasons[reason_codes.NO_FACE] += 1
@@ -120,6 +149,8 @@ class PADVideoEvaluator:
                     valid_face_frames=len(crops),
                     reasons=(reason_codes.MODEL_ERROR,),
                     started=started,
+                    video_sha256=video_sha256,
+                    video_bytes=video_bytes,
                 )
             if assessment.status is not GateStatus.PASS:
                 invalid_reasons.update(assessment.reason_codes)
@@ -136,6 +167,8 @@ class PADVideoEvaluator:
                 valid_face_frames=len(crops),
                 reasons=(reason_codes.MODEL_ERROR,),
                 started=started,
+                video_sha256=video_sha256,
+                video_bytes=video_bytes,
             )
 
         if gate_result.status is GateStatus.ERROR:
@@ -157,6 +190,8 @@ class PADVideoEvaluator:
             reasons=reasons,
             score=gate_result.score,
             started=started,
+            video_sha256=video_sha256,
+            video_bytes=video_bytes,
         )
 
     def _result(
@@ -169,11 +204,15 @@ class PADVideoEvaluator:
         reasons: tuple[str, ...],
         started: float,
         score: float | None = None,
+        video_sha256: str | None = None,
+        video_bytes: int | None = None,
     ) -> PADSampleResult:
         config = self.gate.config
         return PADSampleResult(
             sample_id=row.sample_id,
             relative_video_path=row.relative_video_path,
+            video_sha256=video_sha256,
+            video_bytes=video_bytes,
             subject_token=row.subject_token,
             session_token=row.session_token,
             device_token=row.device_token,

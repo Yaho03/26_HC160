@@ -1,0 +1,3 @@
+# Optional runtime for the Open Model Zoo anti-spoof-mn3 ONNX checkpoint.
+-r requirements-face-auth.txt
+onnxruntime==1.19.2
