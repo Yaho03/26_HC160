@@ -1,4 +1,7 @@
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
@@ -84,6 +87,21 @@ class PADVideoEvaluatorTest(unittest.TestCase):
             manifest_row("attack", "print"), frames(2)
         )
         self.assertEqual(result.outcome, "NOT_EVALUATED")
+
+    def test_video_result_binds_source_bytes_and_sha256(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sample.mp4"
+            path.write_bytes(b"pad-video-fixture")
+            with patch(
+                "src.face_auth.evaluation.pad_evaluator._read_frames",
+                return_value=frames(),
+            ):
+                result = evaluator(0.95).evaluate_video(manifest_row(), path)
+            self.assertEqual(result.video_bytes, len(b"pad-video-fixture"))
+            self.assertEqual(
+                result.video_sha256,
+                "57bcd378bcf7becf46b6ad4bbff420250f5b837e76138cc7a4d724ea7caebd0c",
+            )
 
 
 if __name__ == "__main__":

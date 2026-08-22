@@ -28,10 +28,7 @@ from src.face_auth.inference.continuity import ContinuityConfig, IdentityContinu
 from src.face_auth.inference.feature_squeeze import FeatureSqueezeInspector
 from src.face_auth.inference.full_pipeline import FullEvidencePipeline
 from src.face_auth.inference.head_pose import FivePointHeadPoseEstimator
-from src.face_auth.inference.pad_adapter import (
-    TorchScriptPADConfig,
-    TorchScriptPADScorer,
-)
+from src.face_auth.inference.pad_adapter import create_pad_scorer
 from src.face_auth.inference.passive_pad import PassivePADConfig, PassivePADGate
 from src.face_auth.inference.pipeline import BaselineEvidencePipeline
 from src.face_auth.inference.quality import QualityConfig, QualityGate
@@ -225,15 +222,15 @@ def authenticate(args) -> int:
 
 
 def _full_pipeline(args, baseline, embedder, template_embedding):
-    pad_scorer = TorchScriptPADScorer(
-        TorchScriptPADConfig(
-            model_path=args.pad_model,
-            model_version=args.pad_model_version,
-            input_size=args.pad_input_size,
-            live_class_index=args.pad_live_class_index,
-            output_kind=args.pad_output_kind,
-        ),
+    pad_scorer = create_pad_scorer(
+        runtime=args.pad_runtime,
+        model_path=args.pad_model,
+        model_version=args.pad_model_version,
+        input_size=args.pad_input_size,
+        live_class_index=args.pad_live_class_index,
+        output_kind=args.pad_output_kind,
         device=args.device or "cpu",
+        providers=args.pad_provider,
     )
     adversarial = None
     if args.adversarial_threshold is not None:
@@ -308,12 +305,20 @@ def build_parser() -> argparse.ArgumentParser:
     full = auth_parser.add_argument_group("FULL profile")
     full.add_argument("--pad-model")
     full.add_argument("--pad-model-version", default="unversioned-pad-model")
+    full.add_argument(
+        "--pad-runtime", choices=["torchscript", "onnx"], default="torchscript"
+    )
+    full.add_argument(
+        "--pad-provider",
+        action="append",
+        help="ONNX Runtime execution provider; repeat to set fallback order",
+    )
     full.add_argument("--pad-live-threshold", type=float, default=0.80)
     full.add_argument("--pad-threshold-version", default="pad-threshold-unvalidated")
-    full.add_argument("--pad-input-size", type=int, default=224)
-    full.add_argument("--pad-live-class-index", type=int, default=1)
+    full.add_argument("--pad-input-size", type=int)
+    full.add_argument("--pad-live-class-index", type=int)
     full.add_argument(
-        "--pad-output-kind", choices=["logits", "probability"], default="logits"
+        "--pad-output-kind", choices=["logits", "probability"]
     )
     full.add_argument("--continuity-threshold", type=float, default=0.65)
     full.add_argument("--continuity-window", type=int, default=5)
