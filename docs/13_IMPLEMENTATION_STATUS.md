@@ -2,7 +2,7 @@
 
 ## 1. Snapshot
 
-This document describes the repository at commit `c4c1e15` on branch `codex/realtime-face-auth-v2`.
+This document describes the repository at commit `a5fe5ad` on branch `codex/realtime-face-auth-v2`.
 
 - Research foundation and artifact contracts: implemented.
 - Privacy-conscious dataset manifest workflow: implemented.
@@ -17,6 +17,7 @@ Verification performed on 2026-08-22:
 - Python 3.13 research suite: 37 tests passed.
 - Recorded-video FaceNet smoke test: completed; see `face_auth/SMOKE_TEST_REPORT_2026-08-22.md`.
 - PAD report wiring smoke: calibration/test reports were generated with a constant-output test model; its print APCER was intentionally exposed as `1.0`, which validates reporting behavior rather than PAD accuracy.
+- Physical capture readiness: not started. Consented subjects, print media, display-replay devices, and held-out PAD evidence are not prepared yet; this work remains tracked as a separate follow-up experiment.
 
 These counts identify the snapshot only. Use the current test command rather than treating the numbers as permanent.
 
