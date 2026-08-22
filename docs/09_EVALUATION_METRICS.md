@@ -71,3 +71,13 @@ TAR@FAR is reported only where the number of impostor pairs supports the request
 ## 7. Legacy-result warning
 
 The committed classification report and verification report use different task definitions. The current verification summary also uses all 212 rows as the denominator for `defense_success_rate`; future centralized evaluation must preserve that historical value while exposing the conditional denominator separately.
+
+## 8. Empirical FAR support rule
+
+With `N` impostor pairs, the smallest non-zero empirical FAR is `1/N`. Therefore a target FAR is treated as supported only when:
+
+```text
+N * target_far >= 1
+```
+
+This is a minimum reporting gate, not proof of production-level certainty. Threshold artifacts store the impostor denominator, achieved FAR numerator/denominator, calibration manifest hash, and pair-ID-set hash. Final test evaluation uses the frozen numeric threshold and reports its own counts without changing the artifact.

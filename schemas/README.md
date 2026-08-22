@@ -1,6 +1,6 @@
 # Artifact schemas
 
-이 디렉터리의 JSON Schema는 데이터셋 행과 snapshot, 검증 쌍, 공격·방어 결과, 실행 manifest와 산출물 참조의 구조적 계약이다.
+이 디렉터리의 JSON Schema는 데이터셋 행과 snapshot, 검증 쌍·점수·임계값·clean 보고서, 공격·방어 결과, 실행 manifest와 산출물 참조의 구조적 계약이다.
 
 - 경로는 저장소 또는 실행 디렉터리 기준 상대 경로를 사용한다.
 - 파일 내용은 가능한 경우 SHA-256으로 식별한다.
