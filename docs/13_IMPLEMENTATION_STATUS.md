@@ -2,7 +2,7 @@
 
 ## 1. Snapshot
 
-This document describes the repository at commit `d1b96ba` on branch `codex/realtime-face-auth-v2`.
+This document describes the repository at commit `04a7f10` on branch `codex/realtime-face-auth-v2`.
 
 - Research foundation and artifact contracts: implemented.
 - Privacy-conscious dataset manifest workflow: implemented.
@@ -12,9 +12,9 @@ This document describes the repository at commit `d1b96ba` on branch `codex/real
 
 Verification performed on 2026-08-22:
 
-- Python 3.9 full suite: 113 tests passed.
-- Python 3.9 research suite: 35 tests passed.
-- Python 3.13 research suite: 35 tests passed.
+- Python 3.9 full suite: 126 tests passed.
+- Python 3.9 research suite: 36 tests passed.
+- Python 3.13 research suite: 36 tests passed.
 - Recorded-video FaceNet smoke test: completed; see `face_auth/SMOKE_TEST_REPORT_2026-08-22.md`.
 - PAD report wiring smoke: calibration/test reports were generated with a constant-output test model; its print APCER was intentionally exposed as `1.0`, which validates reporting behavior rather than PAD accuracy.
 
@@ -48,7 +48,8 @@ These counts identify the snapshot only. Use the current test command rather tha
 | Camera input | Implemented | shared OpenCV `FrameSource` contract | Device matrix, long-run capture, drop and latency experiments. |
 | Repeated-content detection | Smoke-tested | codec-tolerant content replay gate | Genuine/attack false-positive study across codecs and cameras. |
 | Camera-motion gate | Implemented | background motion estimator | Target-camera calibration; currently retry-oriented evidence only. |
-| Passive PAD | Evaluation harness implemented; external artifact blocked | TorchScript adapter, manifest validator, video evaluator, APCER/BPCER and attack-species metrics exist | Approved model, license/checksum, and held-out physical evaluation. |
+| Passive PAD | Evaluation harness implemented; external artifact blocked | TorchScript/ONNX adapters, manifest validator, source-bound video evaluator, APCER/BPCER and attack-species metrics exist | Approved model, license/checksum, and held-out physical evaluation. |
+| PAD report provenance | Implemented | Run ID, Git state, manifest/model/source-video SHA-256, byte counts, immutable-by-default output, and `pad-evaluation-report.schema.json` | Register each completed report in the repository-wide run/artifact manifest workflow. |
 | Active liveness | Implemented | randomized challenge and head-turn/blink logic | Physical replay study, accessibility alternatives, threshold calibration. |
 | Identity continuity | Implemented | template-anchored temporal gate | Person-switch and occlusion evaluation on held-out sessions. |
 | Adversarial inspection | Implemented as optional veto | transform-consistency and feature-squeeze modules | Clean calibration, adaptive attack evaluation, latency cost. |
@@ -104,13 +105,11 @@ These are not reasons to discard the implementation. They are the shortest path 
 
 | Priority | Gap | Required follow-up |
 |---|---|---|
-| P0 before a PAD result | The PAD evaluator records model SHA-256 but not the manifest hash or every source-video hash in its report. | Bind the PAD manifest and input video artifacts by SHA-256 and reference a run manifest. |
-| P0 before a PAD result | The PAD CLI currently writes its output path directly and can replace an existing report. | Add refusal-by-default or immutable run-ID output directories. Until then, always choose a new output path. |
 | P0 before a FULL claim | No approved PAD checkpoint or held-out physical dataset is present. | Acquire, license-check, hash, calibrate, and evaluate the model before enabling a reportable FULL profile. |
 | P0 before verification results | Score generation from the pinned embedding model is not yet connected to the new EXP-VER-001 JSONL workflow. | Add a model-specific score exporter with model/preprocessing artifact hashes. |
 | P1 | GitHub CI runs dependency-free research tests only. | Add a separate pinned face-auth CI job or documented heavyweight validation workflow. |
-| P1 | Face-auth CLI decisions and PAD reports do not yet have complete JSON Schemas/run-manifest integration. | Define output schemas and register all emitted artifacts. |
+| P1 | PAD reports have a JSON Schema and run/source provenance, but face-auth decisions and repository-wide run/artifact registration remain incomplete. | Define the decision schema and register all emitted reports in run manifests and artifact references. |
 | P1 | `requirements-face-auth.txt` is version-pinned but not hash-locked; target is Python 3.11 while the complete local run was Python 3.9. | Validate a clean Python 3.11 environment and publish a locked environment artifact. |
 | P1 | Templates, sessions, and tokens use local NPZ/in-memory adapters. | Add encrypted, transactional persistence before any multi-process or remote-service use. |
 
-For publishable PAD runs, pass a repository-relative manifest path so the current report does not disclose a local absolute path.
+PAD reports no longer serialize local manifest or model paths. Formal runs refuse a dirty Git worktree and an existing output path by default; `--allow-dirty` and `--overwrite` are explicit non-default escape hatches for local debugging only.

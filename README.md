@@ -54,6 +54,8 @@ python -m src.face_auth.cli authenticate \
 
 `FULL` additionally requires camera-motion, content-replay, passive PAD, randomized head-turn liveness, and identity-continuity gates. It refuses to start without a PAD model. Feature-squeezing inspection can be enabled with a validation-derived `--adversarial-threshold`.
 
+An approved original Open Model Zoo `anti-spoof-mn3` ONNX artifact can instead use `--pad-runtime onnx` after installing `requirements-pad-onnx.txt`. This adds a runtime adapter, not a validation claim; calibrate its threshold and evaluate it on held-out physical attacks before reporting FULL-profile security.
+
 Build a deterministic mid-session insertion video:
 
 ```bash

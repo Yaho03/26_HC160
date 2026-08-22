@@ -46,7 +46,7 @@ Implemented:
 - webcam and recorded-video capture adapters;
 - MTCNN all-face detection and FaceNet multi-frame verification;
 - camera-motion and repeated-content detection;
-- TorchScript PAD adapter with no heuristic fallback;
+- TorchScript and ONNX PAD adapters with no heuristic fallback;
 - randomized head-turn liveness from five landmarks;
 - template-anchored identity continuity;
 - optional transform-consistency adversarial inspection;

@@ -28,4 +28,4 @@ The scenario builder inserted eight static-attack frames at frame 20 and produce
 
 ## Remaining Blocker For FULL Claim
 
-No validated PAD model artifact is present in the repository. The `FULL` CLI requires a TorchScript PAD model and fails closed without one. APCER/BPCER and clean false-reject measurements on subject/session/device-disjoint physical captures are required before the team reports a final security accuracy.
+No validated PAD model artifact is present in the repository. The `FULL` CLI requires an explicit supported PAD model and fails closed without one; current adapters accept TorchScript and the documented original Open Model Zoo ONNX contract. APCER/BPCER and clean false-reject measurements on subject/session/device-disjoint physical captures are required before the team reports a final security accuracy.

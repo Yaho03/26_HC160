@@ -8,7 +8,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 - **Partial**: a code path exists, but an external artifact, target-device calibration, or required experiment is missing.
 - **Pending**: no complete implementation/evidence exists yet.
 
-## Implementation snapshot (commit `d1b96ba`)
+## Implementation snapshot (commit `04a7f10`)
 
 | ID | Status | Evidence or remaining blocker |
 |---|---|---|
@@ -27,7 +27,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-106 | Implemented | Required failures/errors/NOT_EVALUATED cannot verify. |
 | FR-107 | Implemented | Token context, expiry, replay, and one-time consume are tested. |
 | EXP-002 | Implemented for synthetic tests | Genuine/impostor/multi-face/quality/error cases are automated; target-device evidence remains. |
-| FR-201 | Partial | PAD adapter, manifest validator, video evaluator, APCER/BPCER and species metrics exist; validated checkpoint and held-out physical data are missing. |
+| FR-201 | Partial | TorchScript/ONNX PAD adapters, source-bound report schema, immutable output, manifest validator, video evaluator, APCER/BPCER and species metrics exist; validated checkpoint and held-out physical data are missing. |
 | FR-202 | Partial | Random challenge logic exists; physical replay/accessibility evaluation is pending. |
 | FR-203 | Partial | Tracking and template continuity exist; held-out switch/occlusion study is pending. |
 | EXP-201 | Pending | Physical print/screen/replay dataset and report are absent. |
