@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - "src/contracts/**"
+      - "src/datasets/manifest.py"
+      - "src/datasets/manifest_cli.py"
       - "src/evaluation/**"
       - "src/experiments/**"
       - "src/common/reproducibility.py"
@@ -13,6 +15,8 @@ on:
   pull_request:
     paths:
       - "src/contracts/**"
+      - "src/datasets/manifest.py"
+      - "src/datasets/manifest_cli.py"
       - "src/evaluation/**"
       - "src/experiments/**"
       - "src/common/reproducibility.py"
