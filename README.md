@@ -2,6 +2,78 @@
 
 Hanium AML project for targeted adversarial attacks and defense evaluation on face identity recognition.
 
+## Session-based face authentication prototype
+
+The new implementation lives under `src/face_auth/`. It separates enrollment from authentication and adds session state, fail-closed gate policy, challenge/nonce issuance, and a purpose/context-bound one-time result token.
+
+Run the current tests:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Create a multi-frame prototype template from a video:
+
+```bash
+python -m src.face_auth.cli enroll \
+  --video path/to/enrollment.mp4 \
+  --frames 30 \
+  --min-valid-frames 5 \
+  --output local_templates/user-1.npz
+```
+
+Run the first recorded-video authentication slice:
+
+```bash
+python -m src.face_auth.cli authenticate \
+  --video path/to/probe.mp4 \
+  --template local_templates/user-1.npz \
+  --threshold 0.60 \
+  --threshold-version local-validation-v1 \
+  --user-id user-1 \
+  --context-hash demo-context-a
+```
+
+The threshold above is an example only. It must be calibrated on a validation split. The CLI currently reports `BASELINE_ONLY`; it is not the complete PAD/liveness security profile. Prototype templates are not encrypted and must not be committed.
+
+Run the `FULL` reference profile with a separately validated TorchScript PAD model:
+
+```bash
+python -m src.face_auth.cli authenticate \
+  --video path/to/probe.mp4 \
+  --template local_templates/user-1.npz \
+  --profile FULL \
+  --threshold 0.60 \
+  --threshold-version identity-validation-v1 \
+  --pad-model local_models/pad-v1.ts \
+  --pad-model-version pad-v1 \
+  --pad-live-threshold 0.80 \
+  --pad-threshold-version pad-validation-v1 \
+  --user-id user-1
+```
+
+`FULL` additionally requires camera-motion, content-replay, passive PAD, randomized head-turn liveness, and identity-continuity gates. It refuses to start without a PAD model. Feature-squeezing inspection can be enabled with a validation-derived `--adversarial-threshold`.
+
+Build a deterministic mid-session insertion video:
+
+```bash
+python -m src.attack_scenarios.cli \
+  --manifest configs/scenarios/mid_frame_insertion.example.json
+```
+
+Calibrate thresholds on validation data only:
+
+```bash
+python -m src.face_auth.evaluation.calibrate_cli \
+  --input configs/thresholds.validation.example.csv \
+  --output local_thresholds/validation-v1.json \
+  --version validation-v1
+```
+
+The camera and quality defaults are starting values, not accuracy claims. Use `--min-blur-variance` and the other explicit threshold options only with a recorded validation artifact.
+
+Design and evaluation contracts are in `docs/face_auth/`.
+
 ## Attack pipeline
 
 Attack-side Colab notebook:

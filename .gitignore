@@ -21,3 +21,8 @@ data/
 .DS_Store
 pkg_root/
 outputs/verification_defense/**/images/
+local_templates/
+local_scenarios/
+local_thresholds/
+local_models/
+*.npz
