@@ -38,7 +38,7 @@ Every experiment records purpose, hypothesis, input manifests, split roles, mode
 | Requirement | Module target | Test target | Experiment | Artifact/report |
 |---|---|---|---|---|
 | DATA-001 | `src/contracts`, dataset builder | schema/hash test | EXP-DATA-001 | dataset manifest |
-| VER-001 | verification calibration | split/threshold test | EXP-VER-001 | threshold artifact |
+| VER-001 | `src/evaluation/verification_calibration.py` | `tests/research/test_verification_calibration.py` | EXP-VER-001 | threshold artifact + clean report |
 | ATK-001 | centralized evaluation | transition test | EXP-ATK-001 | attack results |
 | DEF-001 | defense evaluator | clean/attack denominator test | EXP-DEF-001 | trade-off table |
 | DEF-002 | experiment split validator | leakage regression | EXP-DEF-002 | held-out report |

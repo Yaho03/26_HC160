@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/threshold-artifact.schema.json",
+  "title": "HC160 verification threshold artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "threshold_artifact_id",
+    "protocol_id",
+    "model_artifact_id",
+    "preprocessing_artifact_id",
+    "score_function",
+    "score_direction",
+    "decision_rule",
+    "threshold",
+    "selection_method",
+    "target_far",
+    "calibration_manifest_id",
+    "calibration_manifest_sha256",
+    "calibration_pair_ids_sha256",
+    "calibration_pair_count",
+    "genuine_pair_count",
+    "impostor_pair_count",
+    "achieved_far",
+    "achieved_tar",
+    "calibration_roc_auc",
+    "calibration_eer",
+    "created_by_run_id",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "threshold_artifact_id": {"type": "string", "minLength": 1},
+    "protocol_id": {"type": "string", "minLength": 1},
+    "model_artifact_id": {"type": "string", "minLength": 1},
+    "preprocessing_artifact_id": {"type": "string", "minLength": 1},
+    "score_function": {"const": "similarity"},
+    "score_direction": {"const": "higher_is_match"},
+    "decision_rule": {"const": "score_gte_threshold"},
+    "threshold": {"type": "number"},
+    "selection_method": {"enum": ["target_far", "eer"]},
+    "target_far": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 1},
+    "calibration_manifest_id": {"type": "string", "minLength": 1},
+    "calibration_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "calibration_pair_ids_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "calibration_pair_count": {"type": "integer", "minimum": 2},
+    "genuine_pair_count": {"type": "integer", "minimum": 1},
+    "impostor_pair_count": {"type": "integer", "minimum": 1},
+    "achieved_far": {"$ref": "#/$defs/rate"},
+    "achieved_tar": {"$ref": "#/$defs/rate"},
+    "calibration_roc_auc": {"type": "number", "minimum": 0, "maximum": 1},
+    "calibration_eer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "threshold", "far", "frr"],
+      "properties": {
+        "value": {"type": "number", "minimum": 0, "maximum": 1},
+        "threshold": {"type": "number"},
+        "far": {"type": "number", "minimum": 0, "maximum": 1},
+        "frr": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "created_by_run_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "rate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator", "value"],
+      "properties": {
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 1},
+        "value": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"selection_method": {"const": "target_far"}}},
+      "then": {"properties": {"target_far": {"type": "number"}}},
+      "else": {"properties": {"target_far": {"type": "null"}}}
+    }
+  ]
+}

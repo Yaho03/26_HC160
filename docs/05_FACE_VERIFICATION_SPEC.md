@@ -72,3 +72,37 @@ thr_<protocol>_<calibration-manifest-hash>_<method-version>
 ```
 
 Any change to weights, detector/alignment, resize, normalization, score function, or calibration data creates a new threshold artifact.
+
+## 8. Executable calibration contract
+
+`src/evaluation/verification_calibration.py` implements the model-independent part of EXP-VER-001. It accepts pair-level similarity scores only after embeddings have been generated and enforces:
+
+- calibration rows only during threshold selection;
+- test rows only during clean baseline evaluation;
+- identical protocol, model, and preprocessing IDs;
+- exact calibration pair-ID provenance;
+- zero calibration/test pair overlap;
+- both genuine and impostor rows in each evaluated split;
+- finite numeric scores and unique pair IDs.
+
+For a requested target FAR, at least `1 / target_far` impostor calibration pairs are required. A smaller set may report observed zero false accepts but cannot claim that FAR operating point. EER selection remains available for comparison and never re-selects the frozen test threshold.
+
+Each score JSONL row follows `schemas/verification-score.schema.json`. Once model inference has produced disjoint calibration and test score files, generate both outputs with:
+
+```bash
+python -m src.evaluation.verification_baseline_cli \
+  --calibration-scores outputs/verification/calibration-scores.jsonl \
+  --test-scores outputs/verification/test-scores.jsonl \
+  --selection-method target_far \
+  --target-far 0.001 \
+  --calibration-manifest-id pairs-calibration-v1 \
+  --calibration-manifest-sha256 CALIBRATION_MANIFEST_SHA256 \
+  --test-manifest-id pairs-test-v1 \
+  --test-manifest-sha256 TEST_MANIFEST_SHA256 \
+  --threshold-artifact-id thr-facenet-v1 \
+  --run-id run-exp-ver-001 \
+  --threshold-output outputs/verification/threshold.json \
+  --report-output outputs/verification/clean-report.json
+```
+
+The command refuses to overwrite outputs by default. The report includes fixed-threshold confusion counts, explicit rate numerators and denominators, Wilson 95% intervals, ROC-AUC, and a clearly labeled descriptive test EER.
