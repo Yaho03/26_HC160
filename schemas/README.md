@@ -4,6 +4,8 @@
 
 `pad-evaluation-report.schema.json`은 PAD 실행 ID, Git 상태, manifest/model SHA-256, 선택된 영상별 SHA-256·바이트 크기, 임계값, 평가 결과와 APCER/BPCER/ACER 구조를 고정한다.
 
+`verification-score-export.schema.json`은 FaceNet 점수 JSONL의 해시와 model/preprocessing/dataset/pair manifest/Git provenance를 결합한다. Threshold와 clean report는 이 export metadata 해시를 다시 참조한다.
+
 - 경로는 저장소 또는 실행 디렉터리 기준 상대 경로를 사용한다.
 - 파일 내용은 가능한 경우 SHA-256으로 식별한다.
 - Schema 검증은 구조를, `src/contracts/validation.py`는 분모·성공 판정 같은 의미 규칙을 검사한다.

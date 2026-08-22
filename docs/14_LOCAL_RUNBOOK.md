@@ -57,7 +57,7 @@ Full face-auth and research validation after installing dependencies:
 python -m unittest discover -s tests -v
 ```
 
-At the documented implementation snapshot the full command passed 126 tests on Python 3.9. Warning output from the test-only TorchScript trace is not a failure; any failed or errored test is.
+At the documented implementation snapshot the full command passed 144 tests on Python 3.9. Warning output from the test-only TorchScript trace is not a failure; any failed or errored test is.
 
 ## 4. Dataset manifest workflow
 
@@ -80,25 +80,42 @@ Omit `--require-identity-disjoint` only when the protocol does not claim open-se
 
 ## 5. Verification baseline workflow
 
-Model inference must first emit score JSONL rows matching `schemas/verification-score.schema.json`. Calibration and test rows must have different pair IDs and identical protocol, model, and preprocessing IDs.
+Export calibration scores from an explicit, approved VGGFace2 checkpoint. The dataset manifest should contain both calibration and test rows so the default identity-disjoint check can detect cross-split leakage:
+
+```bash
+python -m src.evaluation.facenet_score_export_cli \
+  --dataset-manifest data/manifests/verification-dataset.jsonl \
+  --artifact-root external_artifacts/verification \
+  --pair-manifest data/splits/verification-calibration-pairs.jsonl \
+  --pair-manifest-id pairs-calibration-v1 \
+  --protocol-id facenet-vggface2-v1 \
+  --model-checkpoint local_models/20180402-114759-vggface2.pt \
+  --model-artifact-id facenet-vggface2-weights-v1 \
+  --preprocessing-config configs/models/facenet-vggface2-preprocessing.json \
+  --run-id run-score-calibration-v1 \
+  --scores-output outputs/verification/calibration-scores.jsonl \
+  --metadata-output outputs/verification/calibration-scores.metadata.json
+```
+
+Repeat for `verification-test-pairs.jsonl` using new test output names and `--run-id run-score-test-v1`. Do not change the dataset manifest, checkpoint, preprocessing config, model ID, or protocol between the two exports.
+
+Calibrate and evaluate only after both provenance sidecars exist:
 
 ```bash
 python -m src.evaluation.verification_baseline_cli \
   --calibration-scores outputs/verification/calibration-scores.jsonl \
+  --calibration-score-metadata outputs/verification/calibration-scores.metadata.json \
   --test-scores outputs/verification/test-scores.jsonl \
+  --test-score-metadata outputs/verification/test-scores.metadata.json \
   --selection-method target_far \
   --target-far 0.001 \
-  --calibration-manifest-id pairs-calibration-v1 \
-  --calibration-manifest-sha256 CALIBRATION_MANIFEST_SHA256 \
-  --test-manifest-id pairs-test-v1 \
-  --test-manifest-sha256 TEST_MANIFEST_SHA256 \
   --threshold-artifact-id thr-facenet-v1 \
   --run-id run-exp-ver-001 \
   --threshold-output outputs/verification/threshold.json \
   --report-output outputs/verification/clean-report.json
 ```
 
-The command rejects an unsupported target FAR. For example, FAR `0.001` requires at least 1,000 impostor calibration pairs under the repository's minimum empirical support rule.
+The exporter does not save embeddings. It records the checkpoint, preprocessing, dataset, pair-manifest, score-file and Git hashes, rejects dirty worktrees and existing outputs by default, and rechecks inputs after inference. The calibration command rejects tampered score files or mismatched provenance. FAR `0.001` still requires at least 1,000 impostor calibration pairs under the repository's minimum empirical support rule.
 
 ## 6. Face-auth baseline workflow
 

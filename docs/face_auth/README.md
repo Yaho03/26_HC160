@@ -38,6 +38,7 @@ session creation
 | `inference/pipeline.py` | Baseline integrity, quality, all-face, and identity evidence. |
 | `inference/full_pipeline.py` | FULL-profile gate composition. |
 | `inference/pad_adapter.py` | Explicit TorchScript and ONNX PAD model adapters; no heuristic pass fallback. |
+| `inference/pad_model_registry.py` | Approved PAD model metadata, license/checksum and runtime-contract validation. |
 | `inference/active_liveness.py` | Post-challenge head-turn or blink evidence. |
 | `inference/continuity.py` | Template-anchored multi-frame identity consistency. |
 | `inference/content_replay.py` | Frozen/repeated-content signal. |
@@ -48,6 +49,8 @@ session creation
 | `evaluation/pad_evaluator.py` | Per-video face/quality/PAD evaluation with source-video hashes and explicit excluded outcomes. |
 | `evaluation/pad_metrics.py` | APCER, BPCER, ACER, attack-species metrics and Wilson intervals. |
 | `evaluation/pad_cli.py` | Reproducible, immutable-by-default labeled-video PAD report command. |
+| `evaluation/pad_capture.py` | Authorized physical PAD capture session and append-only receipt workflow. |
+| `evaluation/pad_capture_cli.py` | Capture preparation, verification and manifest-materialization commands. |
 | `../../schemas/pad-evaluation-report.schema.json` | Machine-readable PAD report and provenance contract. |
 | `cli.py` | Separate `enroll` and `authenticate` commands. |
 
@@ -81,6 +84,7 @@ Complete examples and troubleshooting are in `../14_LOCAL_RUNBOOK.md`.
 - `BACKLOG.md` — requirement-level work and current status.
 - `EXPERIMENT_PLAN.md` — split rules, evaluation groups, and metrics.
 - `SMOKE_TEST_REPORT_2026-08-22.md` — limited recorded-video evidence and its interpretation.
+- `PAD_CAPTURE_PROTOCOL.md` — authorized physical bona-fide/attack capture and custody procedure.
 - `../13_IMPLEMENTATION_STATUS.md` — repository-wide implementation/evidence matrix.
 
 ## Non-negotiable limitations

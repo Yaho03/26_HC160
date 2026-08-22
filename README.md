@@ -115,7 +115,7 @@ The first verification baseline reuses the trained ResNet-50 identity model as a
 
 This is a bridge step from identity classification to face-authentication verification. A later version can replace the ResNet feature extractor with an ArcFace/InsightFace embedding model while keeping the same pair CSV and metric format.
 
-The commands below are the historical bridge workflow. Its threshold lifecycle does not satisfy the new calibration/test separation contract. New reportable experiments must export disjoint pair-level score JSONL and use `python -m src.evaluation.verification_baseline_cli`; see the [face verification specification](docs/05_FACE_VERIFICATION_SPEC.md).
+The commands below are the historical bridge workflow. Its threshold lifecycle does not satisfy the new calibration/test separation contract. New reportable experiments must create provenance-bound disjoint score exports with `python -m src.evaluation.facenet_score_export_cli`, then use `python -m src.evaluation.verification_baseline_cli`; see the [face verification specification](docs/05_FACE_VERIFICATION_SPEC.md).
 
 Build test pairs:
 

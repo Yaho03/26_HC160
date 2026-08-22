@@ -87,22 +87,39 @@ Any change to weights, detector/alignment, resize, normalization, score function
 
 For a requested target FAR, at least `1 / target_far` impostor calibration pairs are required. A smaller set may report observed zero false accepts but cannot claim that FAR operating point. EER selection remains available for comparison and never re-selects the frozen test threshold.
 
-Each score JSONL row follows `schemas/verification-score.schema.json`. Once model inference has produced disjoint calibration and test score files, generate both outputs with:
+Each score JSONL row follows `schemas/verification-score.schema.json`. `facenet_score_export_cli` loads an explicit VGGFace2 checkpoint without an implicit download, validates every referenced image against the dataset manifest, and writes a sidecar matching `schemas/verification-score-export.schema.json`.
+
+Export calibration scores from the frozen dataset and pair manifests:
+
+```bash
+python -m src.evaluation.facenet_score_export_cli \
+  --dataset-manifest data/manifests/verification-dataset.jsonl \
+  --artifact-root external_artifacts/verification \
+  --pair-manifest data/splits/verification-calibration-pairs.jsonl \
+  --pair-manifest-id pairs-calibration-v1 \
+  --protocol-id facenet-vggface2-v1 \
+  --model-checkpoint local_models/20180402-114759-vggface2.pt \
+  --model-artifact-id facenet-vggface2-weights-v1 \
+  --preprocessing-config configs/models/facenet-vggface2-preprocessing.json \
+  --run-id run-score-calibration-v1 \
+  --scores-output outputs/verification/calibration-scores.jsonl \
+  --metadata-output outputs/verification/calibration-scores.metadata.json
+```
+
+Repeat with the untouched test pair manifest, a new run ID, and test output names. Both exports must use the same identity-disjoint dataset manifest, checkpoint, preprocessing config, and protocol. Then generate the frozen threshold and clean report with:
 
 ```bash
 python -m src.evaluation.verification_baseline_cli \
   --calibration-scores outputs/verification/calibration-scores.jsonl \
+  --calibration-score-metadata outputs/verification/calibration-scores.metadata.json \
   --test-scores outputs/verification/test-scores.jsonl \
+  --test-score-metadata outputs/verification/test-scores.metadata.json \
   --selection-method target_far \
   --target-far 0.001 \
-  --calibration-manifest-id pairs-calibration-v1 \
-  --calibration-manifest-sha256 CALIBRATION_MANIFEST_SHA256 \
-  --test-manifest-id pairs-test-v1 \
-  --test-manifest-sha256 TEST_MANIFEST_SHA256 \
   --threshold-artifact-id thr-facenet-v1 \
   --run-id run-exp-ver-001 \
   --threshold-output outputs/verification/threshold.json \
   --report-output outputs/verification/clean-report.json
 ```
 
-The command refuses to overwrite outputs by default. The report includes fixed-threshold confusion counts, explicit rate numerators and denominators, Wilson 95% intervals, ROC-AUC, and a clearly labeled descriptive test EER.
+Both commands refuse to overwrite outputs by default. Formal score exports require a clean worktree and identity-disjoint data. The calibration command verifies the score-file hashes and matching model/preprocessing/dataset provenance before reporting fixed-threshold confusion counts, explicit rate numerators and denominators, Wilson 95% intervals, ROC-AUC, and a clearly labeled descriptive test EER.

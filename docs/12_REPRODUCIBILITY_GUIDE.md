@@ -25,7 +25,7 @@
 
 `environment.yml` is retained for the original environment. New setup files should list direct dependencies only and separate lightweight tests, research ML, FaceNet, and camera extras. Machine-specific Conda `prefix` values are not part of a portable lock.
 
-The FaceNet code requires `facenet-pytorch`; the existing general environment does not currently declare it. Until environments are consolidated, use the dedicated FaceNet requirement file for that track.
+The FaceNet exporter uses `facenet-pytorch` from `requirements-face-auth.txt`. Its VGGFace2 checkpoint is still an external artifact: pass the file explicitly, verify its license and SHA-256, and never rely on an implicit download during a reportable run.
 
 ## 4. Seed policy
 
