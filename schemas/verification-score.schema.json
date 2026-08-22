@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/verification-score.schema.json",
+  "title": "HC160 pair-level verification score",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pair_id",
+    "same_identity",
+    "score",
+    "split",
+    "protocol_id",
+    "model_artifact_id",
+    "preprocessing_artifact_id"
+  ],
+  "properties": {
+    "pair_id": {"type": "string", "minLength": 1},
+    "same_identity": {"type": "boolean"},
+    "score": {"type": "number", "minimum": -1, "maximum": 1},
+    "split": {"enum": ["calibration", "test"]},
+    "protocol_id": {"type": "string", "minLength": 1},
+    "model_artifact_id": {"type": "string", "minLength": 1},
+    "preprocessing_artifact_id": {"type": "string", "minLength": 1}
+  }
+}
