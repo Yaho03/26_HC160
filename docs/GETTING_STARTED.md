@@ -26,7 +26,7 @@ After installing `requirements-face-auth.txt`, run the combined suite with:
 python -m unittest discover -s tests -v
 ```
 
-The documented implementation snapshot passed 100 combined tests on Python 3.9. Treat this as snapshot evidence and always use the current command to verify later revisions.
+The documented implementation snapshot passed 144 combined tests on Python 3.9. Treat this as snapshot evidence and always use the current command to verify later revisions.
 
 ## 3. Choose a track
 

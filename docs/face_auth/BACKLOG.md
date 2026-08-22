@@ -8,7 +8,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 - **Partial**: a code path exists, but an external artifact, target-device calibration, or required experiment is missing.
 - **Pending**: no complete implementation/evidence exists yet.
 
-## Implementation snapshot (commit `04a7f10`)
+## Implementation snapshot (commit `c4c1e15`)
 
 | ID | Status | Evidence or remaining blocker |
 |---|---|---|
@@ -23,7 +23,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-102 | Implemented | Webcam/video share `FrameSource`; bounded latest-frame buffering and drops are tested. |
 | FR-103 | Implemented | Quality failure is retryable and distinct from model errors. |
 | FR-104 | Implemented | MTCNN retains all detections and multi-face evidence fails closed. |
-| FR-105 | Partial | Multi-frame template and verification exist; final identity threshold artifact is pending. |
+| FR-105 | Partial | Multi-frame template/verification plus provenance-bound FaceNet score export and threshold calibration exist; final approved identity threshold artifact is pending. |
 | FR-106 | Implemented | Required failures/errors/NOT_EVALUATED cannot verify. |
 | FR-107 | Implemented | Token context, expiry, replay, and one-time consume are tested. |
 | EXP-002 | Implemented for synthetic tests | Genuine/impostor/multi-face/quality/error cases are automated; target-device evidence remains. |
