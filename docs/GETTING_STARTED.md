@@ -7,6 +7,8 @@
 3. `04_DATA_AND_ARTIFACT_CONTRACT.md`
 4. `09_EVALUATION_METRICS.md`
 5. `11_SECURITY_ETHICS_AND_LIMITATIONS.md`
+6. `13_IMPLEMENTATION_STATUS.md`
+7. `14_LOCAL_RUNBOOK.md`
 
 ## 2. Lightweight validation
 
@@ -17,6 +19,14 @@ python -m unittest discover -s tests/research -v
 ```
 
 This does not install or execute the GPU research pipeline or the separate face-auth application tests.
+
+After installing `requirements-face-auth.txt`, run the combined suite with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The documented implementation snapshot passed 100 combined tests on Python 3.9. Treat this as snapshot evidence and always use the current command to verify later revisions.
 
 ## 3. Choose a track
 

@@ -36,7 +36,7 @@ Dataset + license metadata
 
 | Existing path | Architectural role |
 |---|---|
-| `src/datasets/` | Dataset preparation; must gain manifest output. |
+| `src/datasets/` | Legacy preparation plus immutable manifest discovery, validation, and snapshot metadata. |
 | `src/training/` | Legacy classification training. |
 | `src/attacks/` | Legacy classification attacks. |
 | `src/verification/` | Verification bridge. |
@@ -44,6 +44,11 @@ Dataset + license metadata
 | `src/defenses/` | Legacy classification defenses. |
 | `src/reports/` | Legacy report builders; future consumers of centralized metrics. |
 | `src/face_auth/` | Session/policy/token reference prototype. |
+| `src/attack_scenarios/` | Manifest-driven replay and frame-insertion video generation. |
+| `src/contracts/` | Dependency-free semantic artifact validation. |
+| `src/evaluation/` | Central verification, attack, defense metrics and EXP-VER-001 calibration. |
+| `src/experiments/` | Immutable run-manifest representation. |
+| `schemas/` | Machine-readable dataset, score, threshold, run, attack, defense, and report contracts. |
 | `outputs/` | Historical committed summaries plus future immutable run directories. |
 
 ## 4. Research and service boundary

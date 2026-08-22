@@ -72,7 +72,7 @@ python -m src.face_auth.evaluation.calibrate_cli \
 
 The camera and quality defaults are starting values, not accuracy claims. Use `--min-blur-variance` and the other explicit threshold options only with a recorded validation artifact.
 
-Design and evaluation contracts are in `docs/face_auth/`.
+Start with the [face-auth documentation](docs/face_auth/README.md) for the module map and security profiles. See the [repository implementation status](docs/13_IMPLEMENTATION_STATUS.md) and [local runbook](docs/14_LOCAL_RUNBOOK.md) for verified scope, remaining gaps, and copy-ready commands.
 
 ## Attack pipeline
 
@@ -112,6 +112,8 @@ Final attack result files are not committed to Git because they contain generate
 The first verification baseline reuses the trained ResNet-50 identity model as a feature extractor. It takes the feature vector before the final classification layer, compares two face images with cosine similarity, and reports verification metrics such as FAR, FRR, EER, and ROC-AUC.
 
 This is a bridge step from identity classification to face-authentication verification. A later version can replace the ResNet feature extractor with an ArcFace/InsightFace embedding model while keeping the same pair CSV and metric format.
+
+The commands below are the historical bridge workflow. Its threshold lifecycle does not satisfy the new calibration/test separation contract. New reportable experiments must export disjoint pair-level score JSONL and use `python -m src.evaluation.verification_baseline_cli`; see the [face verification specification](docs/05_FACE_VERIFICATION_SPEC.md).
 
 Build test pairs:
 
@@ -207,7 +209,9 @@ Defense source modules:
 
 Verification 방어 평가 모듈은 `src/verification/defenses/`로 분리되어 있습니다 (FaceNet 임베딩 기반 cosine similarity 평가, classification 방어와 별도 트랙).
 
-## 실험 결과
+## 과거 분류 방어 결과
+
+아래 표는 기존 classification 방어 파이프라인이 남긴 역사적 결과다. 새 얼굴 검증 프로토콜이나 실시간 인증의 보안 성능으로 해석하면 안 된다. 적대적 학습의 held-out 분리, clean 성능 보존, 성공률 분모를 새 계약으로 재검증하기 전에는 공식 비교 수치로 사용하지 않는다.
 
 | 방어 기법 | 방어 성공률 | 복원율 |
 |-----------|-----------|--------|
