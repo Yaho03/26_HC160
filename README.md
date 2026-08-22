@@ -1,6 +1,21 @@
 # 26_HC160
 
-Hanium AML project for targeted adversarial attacks and defense evaluation on face identity recognition.
+한이음 HC160 프로젝트: 얼굴 인증/인식 모델을 대상으로 targeted adversarial attack,
+방어, 탐지, 재현 가능한 실험 계약을 정리하는 연구 저장소다.
+
+## 협업 및 문서 작성 규칙
+
+문서, 이슈, PR 본문은 기본적으로 한국어로 작성한다. 코드 식별자, 명령어, 파일명,
+모델명, 지표명(FAR, FRR, ASR 등), 요구사항 ID(FR-XXX, EXP-XXX)는 원문 영어를
+유지한다.
+
+- 협업 가이드: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- 이슈 템플릿: [.github/ISSUE_TEMPLATE](./.github/ISSUE_TEMPLATE)
+- PR 템플릿: [.github/PULL_REQUEST_TEMPLATE.md](./.github/PULL_REQUEST_TEMPLATE.md)
+
+이 저장소는 얼굴 이미지, 임베딩, 인증 템플릿, 모델 가중치 같은 민감 산출물을 Git에
+커밋하지 않는다. 실험 결과를 보고할 때는 데이터 split, seed, 모델/threshold/policy
+버전, 실패/오류/제외 표본 수를 함께 적는다.
 
 ## Session-based face authentication prototype
 
