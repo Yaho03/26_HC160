@@ -3,13 +3,16 @@ model_id: facenet-inception-resnet-v1-vggface2
 task: face_verification
 implementation: facenet_pytorch.InceptionResnetV1
 weights: vggface2
+checkpoint: external_artifact_required
 embedding_dimension: 512
+preprocessing_artifact: configs/models/facenet-vggface2-preprocessing.json
 input:
   image_size: [160, 160]
   color_space: RGB
+score_function: cosine_similarity
 threshold:
   source: calibration_required
   value: null
 notes:
-  - Record the exact package and weight artifact versions at run time.
+  - Pass the downloaded VGGFace2 checkpoint as an explicit file and record its SHA-256.
   - Calibrate a threshold on the designated validation split; never copy a threshold from another model.

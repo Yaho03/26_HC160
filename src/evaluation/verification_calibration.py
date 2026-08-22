@@ -271,6 +271,9 @@ def threshold_artifact_dict(
     threshold_artifact_id: str,
     calibration_manifest_id: str,
     calibration_manifest_sha256: str,
+    model_artifact_sha256: str,
+    preprocessing_artifact_sha256: str,
+    calibration_score_export_sha256: str,
     created_by_run_id: str,
     created_at: str,
 ) -> dict[str, Any]:
@@ -280,12 +283,19 @@ def threshold_artifact_dict(
         character not in "0123456789abcdef" for character in calibration_manifest_sha256
     ):
         raise CalibrationError("calibration_manifest_sha256 must be lowercase SHA-256")
+    _require_sha256("model_artifact_sha256", model_artifact_sha256)
+    _require_sha256("preprocessing_artifact_sha256", preprocessing_artifact_sha256)
+    _require_sha256(
+        "calibration_score_export_sha256", calibration_score_export_sha256
+    )
     return {
         "schema_version": "1.0",
         "threshold_artifact_id": threshold_artifact_id,
         "protocol_id": calibration.protocol_id,
         "model_artifact_id": calibration.model_artifact_id,
+        "model_artifact_sha256": model_artifact_sha256,
         "preprocessing_artifact_id": calibration.preprocessing_artifact_id,
+        "preprocessing_artifact_sha256": preprocessing_artifact_sha256,
         "score_function": "similarity",
         "score_direction": "higher_is_match",
         "decision_rule": "score_gte_threshold",
@@ -294,6 +304,7 @@ def threshold_artifact_dict(
         "target_far": calibration.target_far,
         "calibration_manifest_id": calibration_manifest_id,
         "calibration_manifest_sha256": calibration_manifest_sha256,
+        "calibration_score_export_sha256": calibration_score_export_sha256,
         "calibration_pair_ids_sha256": calibration.calibration_pair_ids_sha256,
         "calibration_pair_count": calibration.calibration_pair_count,
         "genuine_pair_count": calibration.genuine_pair_count,
@@ -314,6 +325,9 @@ def clean_baseline_report_dict(
     threshold_artifact_id: str,
     test_manifest_id: str,
     test_manifest_sha256: str,
+    model_artifact_sha256: str,
+    preprocessing_artifact_sha256: str,
+    test_score_export_sha256: str,
     generated_by_run_id: str,
     created_at: str,
 ) -> dict[str, Any]:
@@ -323,19 +337,25 @@ def clean_baseline_report_dict(
         character not in "0123456789abcdef" for character in test_manifest_sha256
     ):
         raise CalibrationError("test_manifest_sha256 must be lowercase SHA-256")
+    _require_sha256("model_artifact_sha256", model_artifact_sha256)
+    _require_sha256("preprocessing_artifact_sha256", preprocessing_artifact_sha256)
+    _require_sha256("test_score_export_sha256", test_score_export_sha256)
     return {
         "schema_version": "1.0",
         "experiment_id": "EXP-VER-001",
         "report_id": f"clean_{result.test_pair_ids_sha256[:16]}",
         "protocol_id": calibration.protocol_id,
         "model_artifact_id": calibration.model_artifact_id,
+        "model_artifact_sha256": model_artifact_sha256,
         "preprocessing_artifact_id": calibration.preprocessing_artifact_id,
+        "preprocessing_artifact_sha256": preprocessing_artifact_sha256,
         "threshold_artifact_id": threshold_artifact_id,
         "frozen_threshold": result.threshold,
         "selection_method": calibration.selection_method,
         "calibration_target_far": calibration.target_far,
         "test_manifest_id": test_manifest_id,
         "test_manifest_sha256": test_manifest_sha256,
+        "test_score_export_sha256": test_score_export_sha256,
         "test_pair_ids_sha256": result.test_pair_ids_sha256,
         "test_pair_count": result.test_pair_count,
         "genuine_pair_count": result.genuine_pair_count,
@@ -358,6 +378,13 @@ def clean_baseline_report_dict(
             "This research result is not production financial authentication evidence.",
         ],
     }
+
+
+def _require_sha256(name: str, value: str) -> None:
+    if len(value) != 64 or any(
+        character not in "0123456789abcdef" for character in value
+    ):
+        raise CalibrationError(f"{name} must be lowercase SHA-256")
 
 
 def _validate_records(

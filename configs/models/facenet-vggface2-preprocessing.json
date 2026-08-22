@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "preprocessing_artifact_id": "facenet-vggface2-rgb160-standardize-v1",
+  "implementation": "facenet_pytorch.InceptionResnetV1",
+  "image_size": [160, 160],
+  "color_space": "RGB",
+  "resize": "bilinear",
+  "pixel_subtract": 127.5,
+  "pixel_divide": 128.0,
+  "tensor_layout": "NCHW",
+  "l2_normalize_embedding": true,
+  "score_function": "cosine_similarity"
+}

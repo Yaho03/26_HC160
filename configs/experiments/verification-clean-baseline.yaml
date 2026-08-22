@@ -4,7 +4,7 @@ task: face_verification
 model_config: configs/models/facenet-vggface2.yaml
 pair_manifest: data/splits/verification-test-pairs.jsonl
 calibration_pair_manifest: data/splits/verification-validation-pairs.jsonl
-distance_metric: euclidean
+distance_metric: cosine_similarity
 threshold_policy:
   method: validation_target_far
   target_far: 0.001
