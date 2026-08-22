@@ -76,3 +76,42 @@ Automated validation must reject:
 ## 7. LFW limitations
 
 LFW is suitable for a research prototype, not for validating production financial authentication. It is not a representative sample of banking customers, cannot substantiate fairness claims, and may overlap with identities seen by public face-model pretraining datasets. Reports must disclose these limits.
+
+## 8. EXP-DATA-001 manifest workflow
+
+The dependency-free manifest tool accepts an artifact-ready directory shaped as:
+
+```text
+<artifact-root>/
+  train/id_<pseudonymous-hex>/image.png
+  calibration/id_<pseudonymous-hex>/image.jpg
+  development/id_<pseudonymous-hex>/image.png
+  test/id_<pseudonymous-hex>/image.jpg
+```
+
+Raw identity directory names are rejected. Generate the pseudonymous artifact tree outside Git, then build a manifest and snapshot record:
+
+```bash
+python -m src.datasets.manifest_cli build \
+  --artifact-root /secure/artifacts/lfw-v1 \
+  --manifest-output data/manifests/lfw-v1.jsonl \
+  --metadata-output data/manifests/lfw-v1.snapshot.json \
+  --manifest-uri data/manifests/lfw-v1.jsonl \
+  --dataset-id lfw-v1 \
+  --license-id LFW-terms \
+  --source-uri https://vis-www.cs.umass.edu/lfw/ \
+  --source-retrieved-at 2026-08-22 \
+  --source-archive /secure/downloads/lfw-deepfunneled.tgz \
+  --require-identity-disjoint
+```
+
+Validation recomputes media hashes and dimensions when the artifact root is supplied:
+
+```bash
+python -m src.datasets.manifest_cli validate \
+  --manifest data/manifests/lfw-v1.jsonl \
+  --artifact-root /secure/artifacts/lfw-v1 \
+  --require-identity-disjoint
+```
+
+Use `--require-identity-disjoint` only for protocols claiming subject-disjoint generalization. Media hashes are always forbidden from crossing split roles.

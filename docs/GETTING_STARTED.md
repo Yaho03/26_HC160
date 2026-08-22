@@ -10,13 +10,13 @@
 
 ## 2. Lightweight validation
 
-The contract, metric, and existing lightweight tests use the standard library:
+The research contract and metric tests use the standard library:
 
 ```bash
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests/research -v
 ```
 
-This does not install or execute the GPU research pipeline.
+This does not install or execute the GPU research pipeline or the separate face-auth application tests.
 
 ## 3. Choose a track
 
