@@ -1,95 +1,116 @@
-# Face Verification Specification
+# FACE VERIFICATION SPEC — 얼굴 검증 사양
 
-## 1. Decision model
+| 항목 | 내용 |
+|---|---|
+| 문서명 | 얼굴 Verification 사양서 |
+| 버전 | v1.0 |
+| 상태 | 확정 |
+| 최종 수정일 | 2026-08-23 |
 
-For enrollment embedding `e` and probe embedding `p`:
+---
+
+## 1. 판정 모델
+
+Enrollment embedding `e`와 probe embedding `p`에 대해 다음을 사용한다.
 
 ```text
 score = cosine_similarity(e, p)
 accept = score >= threshold
 ```
 
-The embedding model, face preprocessing, score function, and threshold artifact form one versioned verification protocol. A threshold from a different model or preprocessing version is invalid.
+Embedding model, face preprocessing, score function과 threshold artifact는 하나의 versioned
+verification protocol을 구성한다. 다른 model 또는 preprocessing version에서 얻은
+threshold는 유효하지 않다.
 
-## 2. Supported tracks
+## 2. 지원 트랙
 
-| Protocol | Role | Image size | Current model |
+| Protocol | 역할 | Image size | 현재 model |
 |---|---|---:|---|
 | `resnet50-lfw10-bridge-v1` | Legacy bridge | 224 | LFW-10 classifier backbone |
-| `facenet-vggface2-v1` | Primary candidate | 160 | InceptionResnetV1, VGGFace2 weights |
-| `camera-facenet-prototype-v1` | Camera exploration | 160 | MTCNN crop + FaceNet |
+| `facenet-vggface2-v1` | 주요 후보 | 160 | InceptionResnetV1, VGGFace2 weights |
+| `camera-facenet-prototype-v1` | Camera 탐색 | 160 | MTCNN crop + FaceNet |
 
-Scores and thresholds from these protocols must not be merged.
+서로 다른 protocol의 score와 threshold를 합치지 않는다.
 
 ## 3. Calibration
 
-1. Build a frozen calibration-pair manifest.
-2. Compute embeddings with a pinned model and preprocessing version.
-3. Select the operating threshold using only calibration rows.
-4. Store threshold, selection method, supported FAR range, source hashes, and software versions.
-5. Freeze the threshold before attack, defense, or final test evaluation.
+1. 고정된 calibration-pair manifest를 만든다.
+2. 고정 model과 preprocessing version으로 embedding을 계산한다.
+3. Calibration row만 사용하여 운영 threshold를 선택한다.
+4. Threshold, 선택 방법, 지원 FAR 범위, source hash와 software version을 저장한다.
+5. Attack, defense 또는 최종 test 평가 전에 threshold를 고정한다.
 
-EER may be reported for comparison, but a financial scenario should also report TAR at supported low-FAR operating points. The repository must not claim a FAR level that the available negative-pair count cannot statistically support.
+EER는 비교 목적으로 보고할 수 있다. 금융 시나리오는 지원 가능한 low-FAR operating
+point의 TAR도 보고해야 한다. Negative pair 수로 통계적으로 지원할 수 없는 FAR을
+주장해서는 안 된다.
 
-## 4. Clean evaluation
+## 4. Clean 평가 출력
 
-Required outputs:
+- Pair별 score와 accept/reject decision
+- TP, TN, FP, FN
+- FAR/FMR, FRR/FNMR, TAR, TNR
+- EER와 ROC-AUC
+- 지원 가능한 FAR target에서 TAR
+- Sample 수와 confidence interval
+- Model, preprocessing, threshold, dataset 및 protocol ID
 
-- pair-level score and accept/reject decision;
-- TP, TN, FP, FN;
-- FAR/FMR, FRR/FNMR, TAR, TNR;
-- EER and ROC-AUC;
-- TAR at supported FAR targets;
-- sample counts and confidence intervals;
-- model, preprocessing, threshold, dataset, and protocol IDs.
+## 5. 공격 평가
 
-## 5. Attack evaluation
-
-Targeted impersonation attempts must begin from different-identity pairs rejected before attack. Primary success is:
+Targeted impersonation attempt는 공격 전 거부된 다른 identity pair에서 시작한다.
 
 ```text
 success_from_reject = (accepted_before is False) and (accepted_after is True)
 ```
 
-`accepted_after` alone is not a valid targeted attack-success definition because it includes pairs already falsely accepted before attack.
+`accepted_after`만으로 공격 성공을 정의하면 공격 전 이미 false accept였던 pair가
+포함되므로 유효하지 않다.
 
-## 6. Defense evaluation
+## 6. 방어 평가
 
-Every defense is applied to:
+모든 방어는 다음 대상에 적용한다.
 
-- eligible successful adversarial probes;
-- the corresponding clean probes;
-- an independently sampled clean verification test set.
+- Eligible successful adversarial probe
+- 대응하는 clean probe
+- 독립적으로 추출한 clean verification test set
 
-Reports must show attack ASR after defense and clean TAR/FRR change together. A defense that rejects everything is invalid even if its attack ASR is zero.
+Report는 방어 후 attack ASR과 clean TAR/FRR 변화를 함께 보여야 한다. 모든 입력을
+거부하는 방어는 attack ASR이 0이어도 유효하지 않다.
 
-## 7. Threshold lifecycle
+## 7. Threshold 생명주기
 
-Threshold artifacts use an ID such as:
+Threshold artifact ID는 다음과 같은 형식을 사용한다.
 
 ```text
 thr_<protocol>_<calibration-manifest-hash>_<method-version>
 ```
 
-Any change to weights, detector/alignment, resize, normalization, score function, or calibration data creates a new threshold artifact.
+Weight, detector/alignment, resize, normalization, score function 또는 calibration data가
+변경되면 새 threshold artifact를 만든다.
 
-## 8. Executable calibration contract
+## 8. 실행 가능한 calibration 계약
 
-`src/evaluation/verification_calibration.py` implements the model-independent part of EXP-VER-001. It accepts pair-level similarity scores only after embeddings have been generated and enforces:
+`src/evaluation/verification_calibration.py`는 EXP-VER-001의 model-independent 부분을
+구현한다. Embedding 생성이 끝난 pair-level similarity score를 입력받아 다음을 검증한다.
 
-- calibration rows only during threshold selection;
-- test rows only during clean baseline evaluation;
-- identical protocol, model, and preprocessing IDs;
-- exact calibration pair-ID provenance;
-- zero calibration/test pair overlap;
-- both genuine and impostor rows in each evaluated split;
-- finite numeric scores and unique pair IDs.
+- Threshold 선택에는 calibration row만 사용
+- Clean baseline 평가에는 test row만 사용
+- Protocol, model 및 preprocessing ID 일치
+- Calibration pair-ID provenance 일치
+- Calibration/test pair overlap 0건
+- 평가 split마다 genuine과 impostor row 존재
+- 유한한 numeric score와 unique pair ID
 
-For a requested target FAR, at least `1 / target_far` impostor calibration pairs are required. A smaller set may report observed zero false accepts but cannot claim that FAR operating point. EER selection remains available for comparison and never re-selects the frozen test threshold.
+Target FAR을 요청하면 impostor calibration pair가 최소 `1 / target_far`개 있어야 한다.
+더 적은 dataset은 observed zero false accept를 보고할 수 있지만 해당 FAR operating
+point를 주장할 수 없다. EER 선택은 비교 목적으로만 사용하며 고정 test threshold를 다시
+선택하지 않는다.
 
-Each score JSONL row follows `schemas/verification-score.schema.json`. `facenet_score_export_cli` loads an explicit VGGFace2 checkpoint without an implicit download, validates every referenced image against the dataset manifest, and writes a sidecar matching `schemas/verification-score-export.schema.json`.
+Score JSONL row는 `schemas/verification-score.schema.json`을 따른다.
+`facenet_score_export_cli`는 암시적 download 없이 명시한 VGGFace2 checkpoint를
+불러오며, dataset manifest의 image hash를 검증한 뒤
+`schemas/verification-score-export.schema.json`에 맞는 sidecar를 작성한다.
 
-Export calibration scores from the frozen dataset and pair manifests:
+Calibration score export 예시는 다음과 같다.
 
 ```bash
 python -m src.evaluation.facenet_score_export_cli \
@@ -106,7 +127,9 @@ python -m src.evaluation.facenet_score_export_cli \
   --metadata-output outputs/verification/calibration-scores.metadata.json
 ```
 
-Repeat with the untouched test pair manifest, a new run ID, and test output names. Both exports must use the same identity-disjoint dataset manifest, checkpoint, preprocessing config, and protocol. Then generate the frozen threshold and clean report with:
+변경하지 않은 test pair manifest에 새 run ID와 출력 이름을 사용하여 같은 과정을 반복한다.
+두 export는 동일한 identity-disjoint dataset manifest, checkpoint, preprocessing config와
+protocol을 사용해야 한다. 이후 threshold와 clean report를 생성한다.
 
 ```bash
 python -m src.evaluation.verification_baseline_cli \
@@ -122,4 +145,7 @@ python -m src.evaluation.verification_baseline_cli \
   --report-output outputs/verification/clean-report.json
 ```
 
-Both commands refuse to overwrite outputs by default. Formal score exports require a clean worktree and identity-disjoint data. The calibration command verifies the score-file hashes and matching model/preprocessing/dataset provenance before reporting fixed-threshold confusion counts, explicit rate numerators and denominators, Wilson 95% intervals, ROC-AUC, and a clearly labeled descriptive test EER.
+두 명령은 기본적으로 기존 출력을 덮어쓰지 않는다. 정식 score export는 clean worktree와
+identity-disjoint data를 요구한다. Calibration 명령은 score file hash와
+model/preprocessing/dataset provenance를 검증한 뒤 고정 threshold confusion count,
+분자·분모가 명시된 rate, Wilson 95% interval, ROC-AUC와 설명용 test EER를 보고한다.
