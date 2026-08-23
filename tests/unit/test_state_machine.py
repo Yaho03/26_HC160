@@ -33,6 +33,15 @@ class StateMachineTest(unittest.TestCase):
         with self.assertRaises(InvalidStateTransition):
             transition(SessionState.VERIFIED, SessionState.CAPTURING)
 
+    def test_live_security_veto_can_deny_during_capture(self):
+        self.assertTrue(
+            can_transition(SessionState.CAPTURING, SessionState.SECURITY_DENIED)
+        )
+        self.assertEqual(
+            transition(SessionState.CAPTURING, SessionState.SECURITY_DENIED),
+            SessionState.SECURITY_DENIED,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

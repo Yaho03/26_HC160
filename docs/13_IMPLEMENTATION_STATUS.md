@@ -59,7 +59,7 @@ threshold, sample 수, confidence interval과 limitation을 기록해야 보고 
 | Baseline video authentication | Smoke 검증 | MTCNN, FaceNet, quality와 identity pipeline | Target device의 identity·quality threshold calibration |
 | Camera input | 구현됨 | 공통 OpenCV `FrameSource` 계약 | Device matrix, 장시간 capture, drop·latency 실험 |
 | Live camera interaction | 구현됨 | Memory-only preview, progress overlay, cancel, headless override, structured error | macOS 권한 부여와 target-camera manual smoke test |
-| Repeated-content detection | Smoke 검증 | Codec-tolerant content replay gate | Codec/camera별 genuine/attack false-positive 연구 |
+| Repeated-content detection | Smoke 검증 | Codec-tolerant batch gate, challenge 이후 streaming veto와 즉시 `SECURITY_DENIED` 전환 | Codec/camera별 genuine/attack false-positive 연구 |
 | Camera-motion gate | 구현됨 | Background motion estimator | Target-camera calibration. 현재 retry용 evidence |
 | Passive PAD | Capture/evaluation harness 구현·외부 artifact 차단 | TorchScript/ONNX adapter, fail-closed registry, capture CLI/protocol, manifest validator, evaluator와 APCER/BPCER | 승인 model·license/checksum, 승인 capture session, held-out physical 평가 |
 | PAD report provenance | 구현됨 | Run ID, Git state, manifest/model/source-video hash·byte, immutable output와 schema | 완료 report를 저장소 전체 run/artifact manifest에 등록 |

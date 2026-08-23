@@ -187,6 +187,12 @@ FULL profile 실행 전 다음이 모두 필요하다.
 그렇지 않으면 `CHALLENGE_BINDING_ERROR`를 반환한다. Preview가 경계를 자동 기록할 때는
 외부 경계를 함께 전달하지 않는다.
 
+FULL capture는 challenge 경계 이후 content-replay gate도 증분 실행한다. 반복·정지 run이
+`--content-replay-max-run`을 넘으면 즉시 capture를 중단하고 `LIVE_SECURITY_VETO`를
+반환한다. 기본값은 `2`, threshold version은 `content-replay-v2`다.
+`--content-replay-max-difference`는 codec 차이를 허용하는 fingerprint 거리를 제어한다.
+이 기본값은 prototype 값이며 보안 비율을 주장하기 전에 target-camera 검증이 필요하다.
+
 `--pad-model`이 없으면 FULL은 fail closed하며 시작하지 않는다. Command와 gate map은
 `face_auth/README.md`를 따른다.
 

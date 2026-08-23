@@ -24,32 +24,56 @@ class ContentReplayGate:
         self.config = config or ContentReplayConfig()
 
     def evaluate(self, frames: list[FramePacket]) -> GateResult:
-        if len(frames) < 2:
+        monitor = ContentReplayMonitor(self.config)
+        for frame in frames:
+            monitor.update(frame)
+        return monitor.result(require_pair=True)
+
+
+class ContentReplayMonitor:
+    """Incremental replay detector with the same contract as the batch gate."""
+
+    def __init__(self, config: ContentReplayConfig | None = None) -> None:
+        self.config = config or ContentReplayConfig()
+        if self.config.max_near_duplicate_run < 0:
+            raise ValueError("max_near_duplicate_run must be non-negative")
+        if self.config.max_mean_absolute_difference < 0:
+            raise ValueError("max_mean_absolute_difference must be non-negative")
+        if self.config.fingerprint_size < 1:
+            raise ValueError("fingerprint_size must be positive")
+        self._previous: np.ndarray | None = None
+        self.current_run = 0
+        self.longest_run = 0
+        self.observed_frames = 0
+
+    def update(self, frame: FramePacket) -> GateResult:
+        current = _fingerprint(frame.image_bgr, self.config.fingerprint_size)
+        self.observed_frames += 1
+        if self._previous is not None:
+            difference = float(np.mean(np.abs(current - self._previous)))
+            if difference <= self.config.max_mean_absolute_difference:
+                self.current_run += 1
+                self.longest_run = max(self.longest_run, self.current_run)
+            else:
+                self.current_run = 0
+        self._previous = current
+        return self.result()
+
+    def result(self, *, require_pair: bool = False) -> GateResult:
+        if self.observed_frames < 2:
             return GateResult(
                 "content_replay",
-                GateStatus.FAIL,
-                reason_codes=(reason_codes.INSUFFICIENT_VALID_FRAMES,),
+                GateStatus.FAIL if require_pair else GateStatus.NOT_EVALUATED,
+                score=float(self.longest_run),
                 threshold=float(self.config.max_near_duplicate_run),
+                reason_codes=(reason_codes.INSUFFICIENT_VALID_FRAMES,),
                 threshold_version=self.config.threshold_version,
             )
-        fingerprints = [
-            _fingerprint(frame.image_bgr, self.config.fingerprint_size)
-            for frame in frames
-        ]
-        longest_run = 0
-        current_run = 0
-        for previous, current in zip(fingerprints, fingerprints[1:]):
-            difference = float(np.mean(np.abs(current - previous)))
-            if difference <= self.config.max_mean_absolute_difference:
-                current_run += 1
-                longest_run = max(longest_run, current_run)
-            else:
-                current_run = 0
-        passed = longest_run <= self.config.max_near_duplicate_run
+        passed = self.longest_run <= self.config.max_near_duplicate_run
         return GateResult(
             "content_replay",
             GateStatus.PASS if passed else GateStatus.FAIL,
-            score=float(longest_run),
+            score=float(self.longest_run),
             threshold=float(self.config.max_near_duplicate_run),
             reason_codes=() if passed else (reason_codes.FRAME_SEQUENCE_INVALID,),
             threshold_version=self.config.threshold_version,

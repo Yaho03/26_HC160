@@ -43,7 +43,7 @@ session 생성
 | `inference/pad_model_registry.py` | 승인 PAD model metadata, license/checksum과 runtime contract validation |
 | `inference/active_liveness.py` | Challenge 이후 head-turn 또는 blink evidence |
 | `inference/continuity.py` | Template-anchored multi-frame identity consistency |
-| `inference/content_replay.py` | Frozen/repeated-content signal |
+| `inference/content_replay.py` | Batch·incremental frozen/repeated-content signal |
 | `inference/camera_motion.py` | Background global-motion quality signal |
 | `inference/adversarial_detector.py` | Transform-consistency optional veto |
 | `evaluation/calibration.py` | Validation CSV 기반 prototype gate-threshold calibration |
@@ -87,6 +87,11 @@ FULL preview에는 무작위 라이브니스 동작도 표시된다. 동작을 �
 챌린지 경계로 사용하며, 이후 프레임만 active liveness를 충족할 수 있다. Recorded 또는
 headless FULL capture를 구동하는 외부 UI는 `--challenge-start-frame-id`로 경계를 전달해야
 하며, 경계가 없거나 유효하지 않으면 fail closed한다.
+
+해당 경계 이후 FULL capture는 프레임마다 replay monitor를 갱신한다. 실패하면
+`REPLAY DETECTED`를 표시하고 수집을 중단한 뒤, 캡처된 prefix를 기록하고 session을 즉시
+`SECURITY_DENIED`로 전환하며 token을 발급하지 않는다. 이 조기 veto는 passive PAD나
+최종 batch replay gate를 대체하지 않는다.
 
 ## 6. 문서 지도
 

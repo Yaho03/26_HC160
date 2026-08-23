@@ -32,6 +32,7 @@
 | FR-201 | 부분 구현 | TorchScript/ONNX PAD adapter, report schema, immutable output, manifest validator, evaluator, APCER/BPCER·species metric 존재. 검증 checkpoint와 held-out physical data 없음 |
 | FR-202 | 부분 구현 | Random challenge logic, 실시간 동작 지시와 표시 이후 프레임 결합 존재. Physical replay/accessibility 평가 대기 |
 | FR-203 | 부분 구현 | Tracking·template continuity 존재. Held-out switch/occlusion 연구 대기 |
+| FR-204 | 구현됨 | FULL capture에서 반복·정지 content를 증분 탐지하고 캡처 prefix를 결합한 뒤 token 없는 security veto로 종료 |
 | EXP-201 | 대기 | Physical print/screen/replay dataset과 report 없음 |
 | EXP-202 | 부분 구현 | Synthetic insertion scenario 통과. Physical/person-switch matrix와 delay report 없음 |
 | FR-301 | 부분 구현 | Optional transform-consistency veto 존재. Clean/adaptive calibration 대기 |
@@ -73,6 +74,7 @@
 | FR-201 | Passive PAD와 calibration | Print/screen 종류별 APCER/BPCER |
 | FR-202 | Random active liveness | Pre-challenge action과 replay 거부 |
 | FR-203 | Tracking과 identity continuity | Occlusion reacquisition과 person switch test |
+| FR-204 | Streaming replay veto | 첫 threshold 위반에서 capture를 중단하고 후속 model 실행 없이 거부 |
 | EXP-201 | Print/screen/replay experiment | 종류별 결과 보고 |
 | EXP-202 | Mid-frame/person-switch experiment | Insertion length별 detection과 delay 보고 |
 

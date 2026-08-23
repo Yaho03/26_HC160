@@ -28,6 +28,7 @@ from src.face_auth.application.token_service import TokenService
 from src.face_auth.domain.policy import PolicyEngine
 from src.face_auth.domain.types import (
     FramePacket,
+    GateResult,
     GateStatus,
     SecurityProfile,
     SessionState,
@@ -40,6 +41,11 @@ from src.face_auth.inference.adversarial_detector import (
 )
 from src.face_auth.inference.camera_motion import CameraMotionConfig, CameraMotionGate
 from src.face_auth.inference.continuity import ContinuityConfig, IdentityContinuityGate
+from src.face_auth.inference.content_replay import (
+    ContentReplayConfig,
+    ContentReplayGate,
+    ContentReplayMonitor,
+)
 from src.face_auth.inference.feature_squeeze import FeatureSqueezeInspector
 from src.face_auth.inference.full_pipeline import FullEvidencePipeline
 from src.face_auth.inference.head_pose import FivePointHeadPoseEstimator
@@ -63,6 +69,7 @@ class CaptureBatch:
     frames: tuple[FramePacket, ...]
     cancelled: bool = False
     challenge_start_frame_id: int | None = None
+    live_veto: GateResult | None = None
 
 
 class ChallengeBindingError(RuntimeError):
@@ -76,6 +83,8 @@ def _collect(
     preview: OpenCVPreview | None = None,
     purpose: str = "CAPTURE",
     instruction: str | None = None,
+    live_replay_monitor: ContentReplayMonitor | None = None,
+    monitor_start_frame_id: int | None = None,
 ) -> CaptureBatch:
     frames = []
     challenge_start_frame_id = None
@@ -85,21 +94,55 @@ def _collect(
             if frame is None:
                 break
             frames.append(frame)
+            effective_marker = (
+                challenge_start_frame_id
+                if challenge_start_frame_id is not None
+                else monitor_start_frame_id
+            )
+            live_veto = None
+            if (
+                live_replay_monitor is not None
+                and effective_marker is not None
+                and frame.frame_id >= effective_marker
+            ):
+                live_result = live_replay_monitor.update(frame)
+                if (
+                    frame.frame_id > effective_marker
+                    and live_result.status is GateStatus.FAIL
+                ):
+                    live_veto = live_result
             if preview is not None:
-                if not preview.show(
+                continue_capture = preview.show(
                     frame,
                     captured_frames=len(frames),
                     target_frames=frame_count,
                     purpose=purpose,
                     instruction=instruction,
-                ):
+                    alert="REPLAY DETECTED" if live_veto is not None else None,
+                    wait_ms=900 if live_veto is not None else 1,
+                )
+                if instruction is not None and challenge_start_frame_id is None:
+                    challenge_start_frame_id = frame.frame_id
+                    if live_replay_monitor is not None:
+                        live_replay_monitor.update(frame)
+                if live_veto is not None:
+                    return CaptureBatch(
+                        tuple(frames),
+                        challenge_start_frame_id=challenge_start_frame_id,
+                        live_veto=live_veto,
+                    )
+                if not continue_capture:
                     return CaptureBatch(
                         tuple(frames),
                         cancelled=True,
                         challenge_start_frame_id=challenge_start_frame_id,
                     )
-                if instruction is not None and challenge_start_frame_id is None:
-                    challenge_start_frame_id = frame.frame_id
+            elif live_veto is not None:
+                return CaptureBatch(
+                    tuple(frames),
+                    challenge_start_frame_id=challenge_start_frame_id,
+                    live_veto=live_veto,
+                )
     finally:
         source.close()
         if preview is not None:
@@ -114,14 +157,22 @@ def _capture(
     purpose: str,
     *,
     instruction: str | None = None,
+    live_replay_monitor: ContentReplayMonitor | None = None,
 ) -> CaptureBatch:
-    preview = OpenCVPreview() if _preview_enabled(args) else None
+    preview_enabled = _preview_enabled(args)
+    preview = OpenCVPreview() if preview_enabled else None
     return _collect(
         _source(args),
         args.frames,
         preview=preview,
         purpose=purpose,
         instruction=instruction,
+        live_replay_monitor=live_replay_monitor,
+        monitor_start_frame_id=(
+            None
+            if preview_enabled
+            else getattr(args, "challenge_start_frame_id", None)
+        ),
     )
 
 
@@ -237,6 +288,88 @@ def _challenge_binding_failure(error: ChallengeBindingError, session_id: str) ->
     return 3
 
 
+def _validate_challenge_presentation(args) -> None:
+    preview_enabled = _preview_enabled(args)
+    if preview_enabled and args.challenge_start_frame_id is not None:
+        raise ChallengeBindingError(
+            "Do not provide --challenge-start-frame-id when the preview records "
+            "the displayed challenge boundary."
+        )
+    if not preview_enabled and args.challenge_start_frame_id is None:
+        raise ChallengeBindingError(
+            "FULL headless or recorded-video capture requires "
+            "--challenge-start-frame-id from the external challenge presenter."
+        )
+
+
+def _content_replay_config(args) -> ContentReplayConfig:
+    return ContentReplayConfig(
+        max_near_duplicate_run=args.content_replay_max_run,
+        max_mean_absolute_difference=args.content_replay_max_difference,
+        threshold_version=args.content_replay_threshold_version,
+    )
+
+
+def _capture_configuration_failure(error: ValueError, session_id: str) -> int:
+    print(
+        json.dumps(
+            {
+                "status": "CAPTURE_CONFIG_ERROR",
+                "reason_code": "INVALID_CONTENT_REPLAY_CONFIG",
+                "message": str(error),
+                "session_id": session_id,
+                "state": SessionState.ERROR.value,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 3
+
+
+def _live_security_veto(
+    *,
+    session_id: str,
+    challenge_kind: str,
+    policy_version: str,
+    manifest,
+    gate_result: GateResult,
+) -> int:
+    print(
+        json.dumps(
+            {
+                "status": "LIVE_SECURITY_VETO",
+                "session_id": session_id,
+                "security_profile": SecurityProfile.FULL.value,
+                "state": SessionState.SECURITY_DENIED.value,
+                "decision": "SECURITY_DENIED",
+                "policy_version": policy_version,
+                "challenge": challenge_kind,
+                "challenge_start_frame_id": manifest.challenge_start_frame_id,
+                "reason_codes": list(gate_result.reason_codes),
+                "total_frames": manifest.frame_count,
+                "attempt_id": manifest.attempt_id,
+                "evidence_digest": manifest.evidence_digest,
+                "token_id": None,
+                "gate": {
+                    "gate": gate_result.gate,
+                    "status": gate_result.status.value,
+                    "score": gate_result.score,
+                    "threshold": gate_result.threshold,
+                    "reason_codes": list(gate_result.reason_codes),
+                    "threshold_version": gate_result.threshold_version,
+                },
+                "warning": (
+                    "Live replay thresholds require target-camera validation."
+                ),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 2
+
+
 def enroll(args) -> int:
     detector = MTCNNFaceDetector(device=args.device)
     embedder = FaceNetEmbedder(device=args.device)
@@ -346,15 +479,48 @@ def authenticate(args) -> int:
         if profile is SecurityProfile.FULL
         else None
     )
+    live_replay_monitor = None
+    if profile is SecurityProfile.FULL:
+        try:
+            _validate_challenge_presentation(args)
+            live_replay_monitor = ContentReplayMonitor(
+                _content_replay_config(args)
+            )
+        except ChallengeBindingError as error:
+            sessions.move(session.session_id, SessionState.ERROR)
+            return _challenge_binding_failure(error, session.session_id)
+        except ValueError as error:
+            sessions.move(session.session_id, SessionState.ERROR)
+            return _capture_configuration_failure(error, session.session_id)
     try:
         capture = _capture(
             args,
             "AUTHENTICATION",
             instruction=instruction,
+            live_replay_monitor=live_replay_monitor,
         )
     except (CaptureSourceError, PreviewUnavailableError) as error:
         sessions.move(session.session_id, SessionState.ERROR)
         return _capture_failure(error, session_id=session.session_id)
+    if capture.live_veto is not None:
+        challenge_start_frame_id = (
+            capture.challenge_start_frame_id
+            if capture.challenge_start_frame_id is not None
+            else args.challenge_start_frame_id
+        )
+        manifest = build_capture_manifest(
+            session,
+            list(capture.frames),
+            challenge_start_frame_id=challenge_start_frame_id,
+        )
+        sessions.move(session.session_id, SessionState.SECURITY_DENIED)
+        return _live_security_veto(
+            session_id=session.session_id,
+            challenge_kind=challenge.kind,
+            policy_version=args.policy_version,
+            manifest=manifest,
+            gate_result=capture.live_veto,
+        )
     if capture.cancelled:
         sessions.move(session.session_id, SessionState.RETRYABLE)
         return _capture_cancelled(
@@ -491,6 +657,7 @@ def _full_pipeline(args, baseline, embedder, template_embedding):
                 threshold_version=args.camera_motion_threshold_version,
             )
         ),
+        content_replay_gate=ContentReplayGate(_content_replay_config(args)),
         adversarial_inspector=adversarial,
     )
 
@@ -554,6 +721,11 @@ def build_parser() -> argparse.ArgumentParser:
     full.add_argument("--continuity-threshold-version", default="continuity-3-of-5-v1")
     full.add_argument("--camera-motion-threshold", type=float, default=0.035)
     full.add_argument("--camera-motion-threshold-version", default="camera-motion-v1")
+    full.add_argument("--content-replay-max-run", type=int, default=2)
+    full.add_argument("--content-replay-max-difference", type=float, default=0.30)
+    full.add_argument(
+        "--content-replay-threshold-version", default="content-replay-v2"
+    )
     full.add_argument("--adversarial-threshold", type=float)
     full.add_argument(
         "--adversarial-threshold-version", default="feature-squeeze-unvalidated"

@@ -27,6 +27,8 @@ class OpenCVPreview:
         target_frames: int,
         purpose: str,
         instruction: str | None = None,
+        alert: str | None = None,
+        wait_ms: int = 1,
     ) -> bool:
         rendered = self._render(
             packet.image_bgr,
@@ -34,11 +36,12 @@ class OpenCVPreview:
             target_frames=target_frames,
             purpose=purpose,
             instruction=instruction,
+            alert=alert,
         )
         try:
             self._opened = True
             cv2.imshow(self.window_name, rendered)
-            key = cv2.waitKey(1) & 0xFF
+            key = cv2.waitKey(max(1, wait_ms)) & 0xFF
         except cv2.error as error:
             raise PreviewUnavailableError(
                 "Cannot open the camera preview window. Use --no-preview only "
@@ -65,6 +68,7 @@ class OpenCVPreview:
         target_frames: int,
         purpose: str,
         instruction: str | None = None,
+        alert: str | None = None,
     ) -> np.ndarray:
         rendered = frame_bgr.copy()
         height, width = rendered.shape[:2]
@@ -81,6 +85,11 @@ class OpenCVPreview:
         margin_x = max(12, width // 5)
         guide_top = banner_height + max(12, height // 20)
         guide_bottom = max(guide_top + 1, height - max(20, height // 12))
+        if alert:
+            guide_bottom = max(
+                guide_top + 1,
+                min(guide_bottom, height - 66),
+            )
         cv2.rectangle(
             rendered,
             (margin_x, guide_top),
@@ -138,4 +147,30 @@ class OpenCVPreview:
             1,
             cv2.LINE_AA,
         )
+        if alert:
+            alert_top = max(0, height - 52)
+            cv2.rectangle(
+                rendered,
+                (0, alert_top),
+                (width, height),
+                (36, 42, 196),
+                -1,
+            )
+            cv2.rectangle(
+                rendered,
+                (2, 2),
+                (width - 3, height - 3),
+                (48, 64, 238),
+                4,
+            )
+            cv2.putText(
+                rendered,
+                alert,
+                (18, height - 18),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.68,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
         return rendered
