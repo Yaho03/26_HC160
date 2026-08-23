@@ -1,4 +1,4 @@
-"""HC160 Kaggle run: attack sweeps + handoff packages.
+"""HC160 Kaggle run: attack sweeps + handoff packages + forensics outputs.
 
 This script replaces the old Colab phase-3 cells for the attack owner.
 It uses attached Kaggle datasets:
@@ -11,6 +11,9 @@ Outputs are copied to /kaggle/working:
 
 - handoff/*.zip
 - summaries/*_summary.csv
+- forensics/attack_sessions.csv
+- forensics/attack_risk_summary.csv
+- forensics/attack_detection_rules.json
 - run_log/*.log
 """
 
@@ -325,8 +328,26 @@ def summarize_and_package() -> None:
         )
 
 
+def build_forensics() -> None:
+    roots = [
+        "outputs/verification_attacks_facenet/pgd_png",
+        "outputs/verification_attacks_facenet/fgsm",
+        "outputs/verification_attacks_facenet/square",
+        "outputs/verification_attacks_facenet/pgd_adaptive_smoothing",
+        "outputs/verification_attacks_facenet/pgd_adv_training",
+    ]
+    sh(
+        f"{PY} -m src.forensics.build_attack_forensics "
+        f"--handoff-index does-not-exist.csv "
+        f"--metadata-roots {' '.join(roots)} "
+        f"--defense-files "
+        f"--out-dir outputs/forensics",
+        cwd=REPO,
+    )
+
+
 def copy_outputs() -> None:
-    for dirname in ["handoff", "summaries", "run_log"]:
+    for dirname in ["handoff", "summaries", "forensics", "run_log"]:
         (OUT / dirname).mkdir(parents=True, exist_ok=True)
 
     for zip_path in (REPO / "outputs/handoff").glob("*.zip"):
@@ -335,6 +356,8 @@ def copy_outputs() -> None:
     for summary in (REPO / "outputs/verification_attacks_facenet").glob("*/summary.csv"):
         shutil.copy(summary, OUT / "summaries" / f"{summary.parent.name}_summary.csv")
 
+    if (REPO / "outputs/forensics").exists():
+        shutil.copytree(REPO / "outputs/forensics", OUT / "forensics", dirs_exist_ok=True)
     if (REPO / "outputs/run_log").exists():
         shutil.copytree(REPO / "outputs/run_log", OUT / "run_log", dirs_exist_ok=True)
 
@@ -347,6 +370,7 @@ def main() -> None:
     restore_data()
     run_attacks()
     summarize_and_package()
+    build_forensics()
     copy_outputs()
 
 
