@@ -33,6 +33,7 @@ session creation
 | `application/token_service.py` | Purpose/context-bound, expiring, one-time token behavior. |
 | `application/enrollment_service.py` | Separate multi-frame template creation and local NPZ storage. |
 | `application/evidence_service.py` | Nonce-bound ordered-frame evidence digest. |
+| `application/decision_artifact.py` | Privacy-minimized decision serialization, atomic output, and artifact reference. |
 | `adapters/capture_base.py` | Common frame-source and bounded latest-frame buffer contract. |
 | `adapters/opencv_capture.py` | Recorded-video and webcam input. |
 | `adapters/opencv_preview.py` | Memory-only camera preview, progress overlay, and user cancellation. |
@@ -53,6 +54,7 @@ session creation
 | `evaluation/pad_capture.py` | Authorized physical PAD capture session and append-only receipt workflow. |
 | `evaluation/pad_capture_cli.py` | Capture preparation, verification and manifest-materialization commands. |
 | `../../schemas/pad-evaluation-report.schema.json` | Machine-readable PAD report and provenance contract. |
+| `../../schemas/authentication-decision.schema.json` | Machine-readable terminal authentication decision contract. |
 | `cli.py` | Separate `enroll` and `authenticate` commands. |
 
 Attack-video generation is separate under `src/attack_scenarios/`.
@@ -90,6 +92,12 @@ After that boundary, FULL capture updates the replay monitor for every frame. A 
 shows `REPLAY DETECTED`, stops collection, records the captured prefix, moves the
 session directly to `SECURITY_DENIED`, and issues no token. This early veto does not
 replace passive PAD or the final batch replay gate.
+
+Pass `--decision-output outputs/face-auth/decision.json` to persist the terminal
+policy result or live replay veto without saving identity labels or biometric input.
+The output is immutable by default; `--overwrite-decision-output` is for disposable
+local reruns only. Register its `decision_id` in the producing run manifest when the
+result is used as experiment evidence.
 
 ## Documentation map
 

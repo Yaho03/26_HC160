@@ -32,6 +32,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-202 | Partial | Random challenge logic, live instruction display, and post-display frame binding exist; physical replay/accessibility evaluation is pending. |
 | FR-203 | Partial | Tracking and template continuity exist; held-out switch/occlusion study is pending. |
 | FR-204 | Implemented | FULL capture incrementally detects repeated/frozen content, binds the captured prefix, and terminates with a no-token security veto. |
+| FR-205 | Implemented | Evidence-bound terminal decisions use one privacy-minimized schema, immutable-by-default output, and a run-manifest-compatible artifact reference. |
 | EXP-201 | Pending | Physical print/screen/replay dataset and report are absent. |
 | EXP-202 | Partial | Synthetic insertion scenario passes; physical/person-switch matrix and delay report are absent. |
 | FR-301 | Partial | Optional transform-consistency veto exists; clean/adaptive calibration is pending. |
@@ -74,6 +75,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-202 | Random active liveness | pre-challenge action and replay rejected |
 | FR-203 | Tracking and identity continuity | occlusion reacquisition and person switch tested |
 | FR-204 | Streaming replay veto | first threshold violation stops capture and denies without downstream model execution |
+| FR-205 | Authentication decision artifact | normal and streaming-veto outcomes share one schema and bind policy/gate versions to evidence without biometric payloads |
 | EXP-201 | Print/screen/replay experiment | species-level results reported |
 | EXP-202 | Mid-frame/person-switch experiment | insertion-length detection and delay reported |
 

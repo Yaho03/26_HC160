@@ -21,12 +21,19 @@ from src.face_auth.application.enrollment_service import (
     load_template,
     save_template,
 )
+from src.face_auth.application.decision_artifact import (
+    DecisionArtifactError,
+    build_decision_artifact,
+    validate_decision_output,
+    write_decision_artifact,
+)
 from src.face_auth.application.evidence_service import build_capture_manifest
 from src.face_auth.application.evaluation_service import EvaluationService
 from src.face_auth.application.session_service import SessionService
 from src.face_auth.application.token_service import TokenService
 from src.face_auth.domain.policy import PolicyEngine
 from src.face_auth.domain.types import (
+    DecisionAction,
     FramePacket,
     GateResult,
     GateStatus,
@@ -327,14 +334,73 @@ def _capture_configuration_failure(error: ValueError, session_id: str) -> int:
     return 3
 
 
+def _prepare_decision_output(args) -> None:
+    if args.decision_output is None:
+        return
+    protected_inputs = [args.template]
+    if args.video is not None:
+        protected_inputs.append(args.video)
+    validate_decision_output(
+        args.decision_output,
+        overwrite=args.overwrite_decision_output,
+        protected_inputs=protected_inputs,
+    )
+
+
+def _persist_decision_artifact(args, payload: dict) -> None:
+    if args.decision_output is None:
+        return
+    write_decision_artifact(
+        args.decision_output,
+        payload,
+        overwrite=args.overwrite_decision_output,
+    )
+
+
+def _decision_artifact_failure(
+    error: DecisionArtifactError, session_id: str | None = None
+) -> int:
+    payload = {
+        "status": "DECISION_ARTIFACT_ERROR",
+        "reason_code": "DECISION_ARTIFACT_WRITE_FAILED",
+        "message": str(error),
+    }
+    if session_id is not None:
+        payload["session_id"] = session_id
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 3
+
+
 def _live_security_veto(
     *,
+    args,
     session_id: str,
     challenge_kind: str,
     policy_version: str,
     manifest,
     gate_result: GateResult,
 ) -> int:
+    artifact = build_decision_artifact(
+        session_id=session_id,
+        attempt_id=manifest.attempt_id,
+        security_profile=SecurityProfile.FULL,
+        state=SessionState.SECURITY_DENIED,
+        result_status="LIVE_SECURITY_VETO",
+        decision=DecisionAction.SECURITY_DENIED,
+        policy_version=policy_version,
+        reason_codes=gate_result.reason_codes,
+        challenge_kind=challenge_kind,
+        challenge_start_frame_id=manifest.challenge_start_frame_id,
+        evidence_digest=manifest.evidence_digest,
+        total_frames=manifest.frame_count,
+        valid_face_frames=None,
+        gate_results=(gate_result,),
+        token_id=None,
+    )
+    try:
+        _persist_decision_artifact(args, artifact)
+    except DecisionArtifactError as error:
+        return _decision_artifact_failure(error, session_id)
     print(
         json.dumps(
             {
@@ -428,6 +494,10 @@ def enroll(args) -> int:
 
 
 def authenticate(args) -> int:
+    try:
+        _prepare_decision_output(args)
+    except DecisionArtifactError as error:
+        return _decision_artifact_failure(error)
     profile = SecurityProfile(args.profile)
     if profile is SecurityProfile.FULL and not args.pad_model:
         raise SystemExit("FULL profile requires --pad-model")
@@ -515,6 +585,7 @@ def authenticate(args) -> int:
         )
         sessions.move(session.session_id, SessionState.SECURITY_DENIED)
         return _live_security_veto(
+            args=args,
             session_id=session.session_id,
             challenge_kind=challenge.kind,
             policy_version=args.policy_version,
@@ -571,6 +642,28 @@ def authenticate(args) -> int:
         observation = pipeline.evaluate(frames)
         gate_results = list(observation.gate_results)
     outcome = evaluation.evaluate(session.session_id, gate_results)
+
+    artifact = build_decision_artifact(
+        session_id=session.session_id,
+        attempt_id=manifest.attempt_id,
+        security_profile=session.security_profile,
+        state=session.state,
+        result_status="POLICY_DECISION",
+        decision=outcome.decision.action,
+        policy_version=outcome.decision.policy_version,
+        reason_codes=outcome.decision.reason_codes,
+        challenge_kind=challenge.kind,
+        challenge_start_frame_id=manifest.challenge_start_frame_id,
+        evidence_digest=manifest.evidence_digest,
+        total_frames=observation.total_frames,
+        valid_face_frames=observation.valid_face_frames,
+        gate_results=outcome.decision.gate_results,
+        token_id=outcome.token.token_id if outcome.token else None,
+    )
+    try:
+        _persist_decision_artifact(args, artifact)
+    except DecisionArtifactError as error:
+        return _decision_artifact_failure(error, session.session_id)
 
     payload = {
         "session_id": session.session_id,
@@ -684,6 +777,15 @@ def build_parser() -> argparse.ArgumentParser:
     auth_parser.add_argument("--user-id", required=True)
     auth_parser.add_argument("--purpose", default="HIGH_RISK_ACTION")
     auth_parser.add_argument("--context-hash")
+    auth_parser.add_argument(
+        "--decision-output",
+        help="write a privacy-minimized authentication decision JSON artifact",
+    )
+    auth_parser.add_argument(
+        "--overwrite-decision-output",
+        action="store_true",
+        help="replace an existing decision artifact",
+    )
     auth_parser.add_argument(
         "--profile",
         choices=[profile.value for profile in SecurityProfile],

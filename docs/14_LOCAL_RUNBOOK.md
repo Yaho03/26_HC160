@@ -139,12 +139,20 @@ python -m src.face_auth.cli authenticate \
   --threshold-version validation-only-example \
   --user-id user-1 \
   --context-hash demo-context-a \
-  --profile BASELINE_ONLY
+  --profile BASELINE_ONLY \
+  --decision-output outputs/face-auth/decision.json
 ```
 
 `0.60` is not a release threshold. Replace it with the frozen artifact value produced from approved calibration data. Enrollment and probe video must be separate captures.
 
 Use `--camera 0` instead of `--video` for a webcam. The baseline profile does not include PAD, active liveness, or continuity and must not be presented as complete authentication security.
+
+The optional decision output follows
+`schemas/authentication-decision.schema.json`. It stores policy/gate versions,
+terminal state, frame counts, attempt ID and evidence SHA-256, but not the user ID,
+challenge nonce, frame pixels, embeddings or template. Existing output is refused by
+default. For a reportable run, create a `kind: decision` artifact reference and add
+the generated `decision_id` to the run manifest's `output_artifact_ids`.
 
 Camera input opens a local OpenCV preview by default. Keep one face inside the guide
 and press `q` or `Esc` to cancel. Use `--no-preview` only for an intentional headless
@@ -260,6 +268,7 @@ The example CSV is a format illustration, not experimental evidence.
 | `FULL profile requires --pad-model` | Expected configuration block; provide a validated model or use the explicitly limited baseline profile. |
 | Requested FAR is unsupported | Increase impostor calibration pairs or select a statistically supported operating point. |
 | Output already exists | Tools refuse silent overwrite. Use a new run/artifact ID; use `--overwrite` only for disposable local trials. |
+| Decision artifact already exists | Use a new output path. `--overwrite-decision-output` is only for an explicitly disposable local rerun. |
 | Many quality retries | Do not immediately lower thresholds. Measure target-device clean validation data first. |
 | Replay detector misses re-encoded frames | Include codec transfer in validation and calibrate the content-distance threshold. |
 
