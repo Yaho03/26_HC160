@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/run-manifest.schema.json",
+  "title": "HC160 experiment run manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "experiment_id",
+    "requirement_ids",
+    "status",
+    "config_sha256",
+    "git_commit",
+    "environment_sha256",
+    "seed",
+    "device",
+    "started_at",
+    "input_artifact_ids",
+    "output_artifact_ids",
+    "reproduce_command"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "run_id": {"type": "string", "minLength": 1},
+    "experiment_id": {"type": "string", "pattern": "^EXP-[A-Z]+-[0-9]{3}$"},
+    "requirement_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z]+-[0-9]{3}$"}},
+    "status": {"enum": ["planned", "running", "completed", "failed", "blocked_input"]},
+    "config_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "git_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "dirty_worktree": {"type": "boolean"},
+    "environment_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "seed": {"type": "integer", "minimum": 0},
+    "device": {"type": "object"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": ["string", "null"], "format": "date-time"},
+    "input_artifact_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "output_artifact_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "reproduce_command": {"type": "string", "minLength": 1},
+    "notes": {"type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "completed"}}},
+      "then": {"required": ["ended_at"]}
+    }
+  ]
+}

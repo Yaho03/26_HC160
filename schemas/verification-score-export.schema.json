@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/verification-score-export.schema.json",
+  "title": "HC160 verification score export provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "export_id",
+    "run_id",
+    "created_at",
+    "code",
+    "protocol_id",
+    "split",
+    "software",
+    "model_artifact",
+    "preprocessing_artifact",
+    "dataset_manifest",
+    "pair_manifest",
+    "score_file",
+    "evaluation_config"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "export_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "code": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_commit", "dirty_worktree"],
+      "properties": {
+        "git_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "dirty_worktree": {"type": "boolean"}
+      }
+    },
+    "protocol_id": {"type": "string", "minLength": 1},
+    "split": {"enum": ["calibration", "test"]},
+    "software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python", "torch", "facenet_pytorch", "numpy", "pillow"],
+      "properties": {
+        "python": {"type": "string", "minLength": 1},
+        "torch": {"type": "string", "minLength": 1},
+        "facenet_pytorch": {"type": "string", "minLength": 1},
+        "numpy": {"type": "string", "minLength": 1},
+        "pillow": {"type": "string", "minLength": 1}
+      }
+    },
+    "model_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "bytes", "architecture", "weights_source"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "architecture": {"const": "facenet_pytorch.InceptionResnetV1"},
+        "weights_source": {"const": "vggface2"}
+      }
+    },
+    "preprocessing_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "bytes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "dataset_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "row_count"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "row_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "pair_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "row_count", "split"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "row_count": {"type": "integer", "minimum": 1},
+        "split": {"enum": ["calibration", "test"]}
+      }
+    },
+    "score_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes", "row_count"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "row_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "evaluation_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device", "batch_size", "require_identity_disjoint", "deterministic_algorithms"],
+      "properties": {
+        "device": {"type": "string", "minLength": 1},
+        "batch_size": {"type": "integer", "minimum": 1},
+        "require_identity_disjoint": {"type": "boolean"},
+        "deterministic_algorithms": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

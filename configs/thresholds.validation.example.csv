@@ -1,0 +1,5 @@
+sample_id,label,identity_similarity,pad_live_score,camera_motion_score,content_replay_run,adversarial_distance
+clean-001,clean,0.82,0.94,0.012,0,0.011
+clean-002,clean,0.78,0.91,0.021,0,0.014
+attack-001,attack,0.55,0.18,0.004,12,0.093
+attack-002,attack,0.61,0.27,0.008,8,0.081
