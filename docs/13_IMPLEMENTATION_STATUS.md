@@ -49,7 +49,7 @@ These counts identify the snapshot only. Use the current test command rather tha
 | Baseline video authentication | Smoke-tested | MTCNN, FaceNet, quality and identity pipeline | Calibrate identity and quality thresholds on target devices. |
 | Camera input | Implemented | shared OpenCV `FrameSource` contract | Device matrix, long-run capture, drop and latency experiments. |
 | Live camera interaction | Implemented | memory-only preview, progress overlay, user cancellation, headless override, and structured device/preview errors | macOS permission grant and target-camera manual smoke test. |
-| Repeated-content detection | Smoke-tested | codec-tolerant content replay gate | Genuine/attack false-positive study across codecs and cameras. |
+| Repeated-content detection | Smoke-tested | codec-tolerant batch gate plus post-challenge streaming veto and immediate `SECURITY_DENIED` transition | Genuine/attack false-positive study across codecs and cameras. |
 | Camera-motion gate | Implemented | background motion estimator | Target-camera calibration; currently retry-oriented evidence only. |
 | Passive PAD | Capture/evaluation harness implemented; external artifact blocked | TorchScript/ONNX adapters, fail-closed model registry, physical capture CLI/protocol, manifest validator, source-bound evaluator, APCER/BPCER and attack-species metrics exist | Approved model, license/checksum, authorized capture sessions, and held-out physical evaluation. |
 | PAD report provenance | Implemented | Run ID, Git state, manifest/model/source-video SHA-256, byte counts, immutable-by-default output, and `pad-evaluation-report.schema.json` | Register each completed report in the repository-wide run/artifact manifest workflow. |

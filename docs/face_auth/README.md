@@ -42,7 +42,7 @@ session creation
 | `inference/pad_model_registry.py` | Approved PAD model metadata, license/checksum and runtime-contract validation. |
 | `inference/active_liveness.py` | Post-challenge head-turn or blink evidence. |
 | `inference/continuity.py` | Template-anchored multi-frame identity consistency. |
-| `inference/content_replay.py` | Frozen/repeated-content signal. |
+| `inference/content_replay.py` | Batch and incremental frozen/repeated-content signal. |
 | `inference/camera_motion.py` | Background global-motion quality signal. |
 | `inference/adversarial_detector.py` | Transform-consistency optional veto. |
 | `evaluation/calibration.py` | Prototype gate-threshold calibration from validation CSV. |
@@ -85,6 +85,11 @@ The FULL preview also shows the randomized liveness action. Its first displayed 
 is used as the challenge boundary, and only later frames can satisfy active liveness.
 An external UI driving recorded or headless FULL capture must pass its boundary with
 `--challenge-start-frame-id`; absent or invalid boundaries fail closed.
+
+After that boundary, FULL capture updates the replay monitor for every frame. A FAIL
+shows `REPLAY DETECTED`, stops collection, records the captured prefix, moves the
+session directly to `SECURITY_DENIED`, and issues no token. This early veto does not
+replace passive PAD or the final batch replay gate.
 
 ## Documentation map
 

@@ -19,6 +19,7 @@ from src.face_auth.cli import (
     build_parser,
 )
 from src.face_auth.domain.types import FramePacket
+from src.face_auth.inference.content_replay import ContentReplayMonitor
 
 
 def packet(frame_id: int) -> FramePacket:
@@ -129,6 +130,64 @@ class LiveCaptureTest(unittest.TestCase):
 
         self.assertIsNone(result.challenge_start_frame_id)
 
+    def test_live_replay_veto_stops_capture_on_first_threshold_violation(self):
+        image = np.zeros((240, 320, 3), dtype=np.uint8)
+        source = FakeSource(
+            [FramePacket(index, float(index), image.copy()) for index in range(10)]
+        )
+        preview = FakePreview([True] * 10)
+
+        result = _collect(
+            source,
+            10,
+            preview=preview,
+            purpose="AUTHENTICATION",
+            instruction="TURN HEAD LEFT",
+            live_replay_monitor=ContentReplayMonitor(),
+        )
+
+        self.assertEqual(len(result.frames), 4)
+        self.assertIsNotNone(result.live_veto)
+        self.assertEqual(result.live_veto.status.value, "FAIL")
+        self.assertEqual(preview.calls[-1][1]["alert"], "REPLAY DETECTED")
+        self.assertEqual(preview.calls[-1][1]["wait_ms"], 900)
+
+    def test_live_replay_monitor_allows_changing_frames_to_finish(self):
+        frames = []
+        for index in range(6):
+            image = np.full((240, 320, 3), index + 20, dtype=np.uint8)
+            frames.append(FramePacket(index, float(index), image))
+        source = FakeSource(frames)
+        preview = FakePreview([True] * len(frames))
+
+        result = _collect(
+            source,
+            len(frames),
+            preview=preview,
+            instruction="TURN HEAD RIGHT",
+            live_replay_monitor=ContentReplayMonitor(),
+        )
+
+        self.assertEqual(len(result.frames), len(frames))
+        self.assertIsNone(result.live_veto)
+
+    def test_headless_replay_monitor_starts_at_external_challenge_marker(self):
+        frames = []
+        for index in range(8):
+            image = np.full((240, 320, 3), 20, dtype=np.uint8)
+            frames.append(FramePacket(index, float(index), image))
+        source = FakeSource(frames)
+
+        result = _collect(
+            source,
+            len(frames),
+            live_replay_monitor=ContentReplayMonitor(),
+            monitor_start_frame_id=2,
+        )
+
+        self.assertEqual(len(result.frames), 6)
+        self.assertIsNotNone(result.live_veto)
+
     def test_headless_full_requires_explicit_valid_challenge_boundary(self):
         capture = CaptureBatch(tuple(packet(index) for index in range(6)))
         args = SimpleNamespace(challenge_start_frame_id=None, min_valid_frames=3)
@@ -206,6 +265,32 @@ class LiveCaptureTest(unittest.TestCase):
 
         self.assertFalse(should_continue)
         self.assertTrue(np.any(rendered != 0))
+
+    def test_preview_uses_requested_hold_for_security_alert(self):
+        preview = OpenCVPreview("test-window")
+        with (
+            patch("src.face_auth.adapters.opencv_preview.cv2.imshow") as imshow,
+            patch(
+                "src.face_auth.adapters.opencv_preview.cv2.waitKey",
+                return_value=-1,
+            ) as wait_key,
+            patch("src.face_auth.adapters.opencv_preview.cv2.destroyWindow"),
+        ):
+            should_continue = preview.show(
+                packet(0),
+                captured_frames=4,
+                target_frames=20,
+                purpose="AUTHENTICATION",
+                instruction="TURN HEAD RIGHT",
+                alert="REPLAY DETECTED",
+                wait_ms=900,
+            )
+            rendered = imshow.call_args.args[1]
+            preview.close()
+
+        self.assertTrue(should_continue)
+        wait_key.assert_any_call(900)
+        self.assertGreater(int(rendered[-20, 10, 2]), 150)
 
 
 if __name__ == "__main__":

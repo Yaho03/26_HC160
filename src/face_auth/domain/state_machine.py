@@ -18,6 +18,7 @@ _ALLOWED_TRANSITIONS: dict[SessionState, frozenset[SessionState]] = {
         {
             SessionState.EVIDENCE_RECEIVED,
             SessionState.RETRYABLE,
+            SessionState.SECURITY_DENIED,
             SessionState.ERROR,
             SessionState.EXPIRED,
         }

@@ -6,6 +6,8 @@
 CREATED -> CHALLENGE_ISSUED -> CAPTURING -> EVIDENCE_RECEIVED
         -> EVALUATING -> VERIFIED | RETRYABLE | SECURITY_DENIED | ERROR
         -> CONSUMED | EXPIRED
+
+CAPTURING -> SECURITY_DENIED (streaming security veto)
 ```
 
 ## Session Creation
@@ -70,3 +72,9 @@ Any mismatch requires a new authentication session.
 - `continuity`: recent embeddings remain bound to the enrollment template.
 
 The optional `adversarial` gate may veto a decision when enabled. A missing PAD model is a configuration failure, not a pass.
+
+In FULL camera capture, the content-replay monitor applies the same fingerprint and
+threshold contract incrementally after the challenge boundary. The first threshold
+violation terminates capture as `SECURITY_DENIED`, binds the collected prefix to an
+evidence digest, and skips identity/PAD inference and token issuance. The final batch
+gate remains required when no streaming veto occurs.

@@ -174,6 +174,13 @@ challenge presenter. The marker must identify a captured frame and leave at leas
 `CHALLENGE_BINDING_ERROR`. Do not supply an external marker when the preview is
 recording the boundary automatically.
 
+FULL capture also runs the content-replay gate incrementally after the challenge
+boundary. A repeated/frozen run longer than `--content-replay-max-run` stops capture
+immediately and returns `LIVE_SECURITY_VETO`; the default is `2` with threshold version
+`content-replay-v2`. `--content-replay-max-difference` controls codec-tolerant
+fingerprint distance. These defaults are prototype values and require target-camera
+validation before any security-rate claim.
+
 If `--pad-model` is absent, FULL refuses to start. This is the intended fail-closed behavior. See `face_auth/README.md` for the command and gate map.
 
 ## 8. Passive PAD evaluation workflow
