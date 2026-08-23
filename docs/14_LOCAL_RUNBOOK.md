@@ -27,7 +27,8 @@ git status -sb
 - Locally verified full-prototype runtime: Python 3.9 with `requirements-face-auth.txt`.
 - Research contract tests also run with the system Python 3.13 because they have no ML dependency.
 
-Create an isolated environment and install face-auth dependencies when required:
+Create an isolated environment and install face-auth dependencies when required.
+`requirements-face-auth.txt` is the cross-platform direct-input list for development:
 
 ```bash
 python3.11 -m venv .venv
@@ -35,6 +36,26 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-face-auth.txt
 ```
+
+CI and clean Linux verification use the complete CPython 3.11 `linux/amd64` lock:
+
+```bash
+python scripts/verify_face_auth_lock.py
+python -m pip install --require-hashes -r requirements-face-auth.lock
+```
+
+Minimal Debian/Ubuntu images also need OpenCV's runtime libraries before imports:
+
+```bash
+sudo apt-get update
+sudo apt-get install --yes --no-install-recommends libgl1 libglib2.0-0
+```
+
+Regenerate the lock only after an intentional direct dependency change, using
+`pip-tools==7.5.2` inside a `python:3.11-slim` container explicitly targeting
+`linux/amd64`. Restore the target marker in the generated header, rerun the lock
+validator, and require a clean CI installation before review. The lock is not a
+portable macOS/Windows environment file.
 
 Install the optional ONNX PAD runtime only when evaluating an approved ONNX checkpoint:
 
@@ -58,8 +79,9 @@ Full face-auth and research validation after installing dependencies:
 python -m unittest discover -s tests -v
 ```
 
-The dedicated `.github/workflows/face-auth.yml` workflow installs the pinned
-face-auth requirements on Python 3.11, checks dependency consistency, and runs
+The dedicated `.github/workflows/face-auth.yml` workflow validates the direct pins and
+SHA-256 entries, installs the complete lock with `--require-hashes` on Python 3.11,
+installs the named OpenCV system libraries, checks dependency consistency, and runs
 `tests/unit` and `tests/integration` separately. The existing research workflow stays
 dependency-free and covers `tests/research`. CI does not access a camera, download a
 PAD checkpoint, or establish physical-attack accuracy.

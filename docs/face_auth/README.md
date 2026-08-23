@@ -78,7 +78,8 @@ python -m unittest discover -s tests/integration -v
 ```
 
 `.github/workflows/face-auth.yml` runs the unit and integration commands on Python
-3.11 after installing `requirements-face-auth.txt`. It is separate from the
+3.11 after validating and installing `requirements-face-auth.lock` with
+`--require-hashes`. It is separate from the
 dependency-free research-contract workflow and does not download model checkpoints or
 exercise physical cameras.
 

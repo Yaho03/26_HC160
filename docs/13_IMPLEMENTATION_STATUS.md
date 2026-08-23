@@ -57,7 +57,7 @@ These counts identify the snapshot only. Use the current test command rather tha
 | Identity continuity | Implemented | template-anchored temporal gate | Person-switch and occlusion evaluation on held-out sessions. |
 | Adversarial inspection | Implemented as optional veto | transform-consistency and feature-squeeze modules | Clean calibration, adaptive attack evaluation, latency cost. |
 | Scenario generation | Implemented | manifest-driven insertion/replay builder | Broader scenario catalog and real physical attack capture. |
-| Face-auth CI | Implemented | Python 3.11 workflow with pinned dependency install, `pip check`, and unit/integration suites | Model artifacts, physical cameras, ONNX and target-device performance remain separate validation jobs. |
+| Face-auth CI | Implemented | Python 3.11 linux/amd64 workflow with direct-pin drift checks, transitive SHA-256 lock install, `pip check`, and unit/integration suites | Model artifacts, physical cameras, ONNX and target-device performance remain separate validation jobs. |
 | Legacy adversarial training | Historical only | existing defense outputs and scripts | Correct disjoint train/validation/test rerun plus adaptive attack. |
 | UI or service API | Not implemented | local CLI only | Read-only demo/API may be added after validated artifacts exist. |
 | Secure persistence | Production extension | in-memory store and local NPZ only | Database transactions, encryption, KMS/HSM, retention and audit. |
@@ -110,8 +110,7 @@ These are not reasons to discard the implementation. They are the shortest path 
 | Priority | Gap | Required follow-up |
 |---|---|---|
 | P0 before a FULL claim | No approved PAD checkpoint or held-out physical dataset is present. | Acquire, license-check, hash, calibrate, and evaluate the model before enabling a reportable FULL profile. |
-| P1 | PAD reports have a JSON Schema and run/source provenance, but face-auth decisions and repository-wide run/artifact registration remain incomplete. | Define the decision schema and register all emitted reports in run manifests and artifact references. |
-| P1 | `requirements-face-auth.txt` is version-pinned but not hash-locked; target is Python 3.11 while the complete local run was Python 3.9. | Validate a clean Python 3.11 environment and publish a locked environment artifact. |
+| P1 | PAD reports and face-auth decisions have JSON Schemas and artifact references, but repository-wide run/artifact registration remains manual. | Register every emitted report in run manifests and artifact references automatically. |
 | P1 | Templates, sessions, and tokens use local NPZ/in-memory adapters. | Add encrypted, transactional persistence before any multi-process or remote-service use. |
 
 PAD reports no longer serialize local manifest or model paths. Formal runs refuse a dirty Git worktree and an existing output path by default; `--allow-dirty` and `--overwrite` are explicit non-default escape hatches for local debugging only.

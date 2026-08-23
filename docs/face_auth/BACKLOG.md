@@ -14,7 +14,8 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 |---|---|---|
 | DOC-001 | Implemented | Scope, API contract, threat model, module map, and limitations documented. |
 | EVAL-001 | Partial | Legacy limitations are documented; old claims have not been rerun on corrected held-out data. |
-| DEP-001 | Partial | Python dependencies are pinned; external model checksums and full clean-checkout bootstrap remain. |
+| DEP-001 | Partial | Python packages have a clean CI lock; approved external model artifacts and their distribution checksums remain. |
+| DEP-002 | Implemented | The linux/amd64 Python 3.11 CI resolves all transitive face-auth packages from a SHA-256 lock and rejects direct-pin drift. |
 | EXP-001 | Partial | Dataset manifest and leakage validator exist; final subject/session/device-disjoint dataset is not built. |
 | ARCH-001 | Implemented | State, gate, policy, and fail-closed integration tests pass. |
 | SEC-001 | Partial | Enrollment separation and token lifecycle exist; encrypted persistent template storage does not. |
