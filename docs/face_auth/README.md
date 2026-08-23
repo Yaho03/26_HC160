@@ -77,6 +77,11 @@ python -m unittest discover -s tests/unit -v
 python -m unittest discover -s tests/integration -v
 ```
 
+`.github/workflows/face-auth.yml` runs the unit and integration commands on Python
+3.11 after installing `requirements-face-auth.txt`. It is separate from the
+dependency-free research-contract workflow and does not download model checkpoints or
+exercise physical cameras.
+
 Complete examples and troubleshooting are in `../14_LOCAL_RUNBOOK.md`.
 
 Webcam commands show a preview by default; recorded-video commands remain headless.

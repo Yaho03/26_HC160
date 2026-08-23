@@ -19,6 +19,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | ARCH-001 | Implemented | State, gate, policy, and fail-closed integration tests pass. |
 | SEC-001 | Partial | Enrollment separation and token lifecycle exist; encrypted persistent template storage does not. |
 | ATK-001 | Implemented | Manifest-driven replay/insertion runner and tests exist. |
+| CI-001 | Implemented | Python 3.11 workflow installs pinned face-auth dependencies and runs unit/integration suites on relevant changes. |
 | FR-101 | Implemented | Nonce, challenge, state, expiry, and replay behavior are tested. |
 | FR-102 | Implemented | Webcam/video share `FrameSource`; bounded latest-frame buffering and drops are tested. |
 | FR-103 | Implemented | Quality failure is retryable and distinct from model errors. |

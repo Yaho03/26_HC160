@@ -23,6 +23,7 @@ git status -sb
 ## 2. Python environments
 
 - Target runtime: Python 3.11.
+- Automated face-auth CI runtime: Python 3.11 with `requirements-face-auth.txt`.
 - Locally verified full-prototype runtime: Python 3.9 with `requirements-face-auth.txt`.
 - Research contract tests also run with the system Python 3.13 because they have no ML dependency.
 
@@ -56,6 +57,12 @@ Full face-auth and research validation after installing dependencies:
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+The dedicated `.github/workflows/face-auth.yml` workflow installs the pinned
+face-auth requirements on Python 3.11, checks dependency consistency, and runs
+`tests/unit` and `tests/integration` separately. The existing research workflow stays
+dependency-free and covers `tests/research`. CI does not access a camera, download a
+PAD checkpoint, or establish physical-attack accuracy.
 
 At the documented implementation snapshot the full command passed 144 tests on Python 3.9. Warning output from the test-only TorchScript trace is not a failure; any failed or errored test is.
 
