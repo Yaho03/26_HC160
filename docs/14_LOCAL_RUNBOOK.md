@@ -146,6 +146,16 @@ python -m src.face_auth.cli authenticate \
 
 Use `--camera 0` instead of `--video` for a webcam. The baseline profile does not include PAD, active liveness, or continuity and must not be presented as complete authentication security.
 
+Camera input opens a local OpenCV preview by default. Keep one face inside the guide
+and press `q` or `Esc` to cancel. Use `--no-preview` only for an intentional headless
+run. The preview is memory-only and does not save raw frames.
+
+On macOS, allow camera access for the application that starts Python. If the command
+returns `CAMERA_UNAVAILABLE`, open **System Settings > Privacy & Security > Camera**,
+grant access to Codex, Terminal, or the relevant Python host, and then restart the
+command. A denied or unavailable camera produces structured `CAPTURE_ERROR` JSON
+instead of a traceback.
+
 ## 7. FULL profile prerequisites
 
 The FULL profile requires all of the following before invocation:

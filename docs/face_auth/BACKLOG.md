@@ -26,6 +26,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-105 | Partial | Multi-frame template/verification plus provenance-bound FaceNet score export and threshold calibration exist; final approved identity threshold artifact is pending. |
 | FR-106 | Implemented | Required failures/errors/NOT_EVALUATED cannot verify. |
 | FR-107 | Implemented | Token context, expiry, replay, and one-time consume are tested. |
+| FR-108 | Implemented | Webcam preview, capture progress, user cancellation, headless override, and structured camera/preview failures are tested. |
 | EXP-002 | Implemented for synthetic tests | Genuine/impostor/multi-face/quality/error cases are automated; target-device evidence remains. |
 | FR-201 | Partial | TorchScript/ONNX PAD adapters, source-bound report schema, immutable output, manifest validator, video evaluator, APCER/BPCER and species metrics exist; validated checkpoint and held-out physical data are missing. |
 | FR-202 | Partial | Random challenge logic exists; physical replay/accessibility evaluation is pending. |
@@ -61,6 +62,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-105 | Multi-frame enrollment and verification | validation threshold and versions recorded |
 | FR-106 | Policy engine | required failures/errors cannot verify |
 | FR-107 | One-time verification token | replay, context change, and expiry rejected |
+| FR-108 | Live camera capture UX | preview/progress, cancellation, headless mode, and camera failure behavior tested |
 | EXP-002 | Baseline E2E scenarios | genuine/impostor/multi-face/blur automated |
 
 ## Phase 2

@@ -2,10 +2,20 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
+from src.face_auth.adapters.capture_base import FrameSource
 from src.face_auth.adapters.in_memory_store import InMemoryStore
-from src.face_auth.adapters.opencv_capture import video_source, webcam_source
+from src.face_auth.adapters.opencv_capture import (
+    CaptureSourceError,
+    video_source,
+    webcam_source,
+)
+from src.face_auth.adapters.opencv_preview import (
+    OpenCVPreview,
+    PreviewUnavailableError,
+)
 from src.face_auth.application.enrollment_service import (
     create_template,
     load_template,
@@ -16,7 +26,12 @@ from src.face_auth.application.evaluation_service import EvaluationService
 from src.face_auth.application.session_service import SessionService
 from src.face_auth.application.token_service import TokenService
 from src.face_auth.domain.policy import PolicyEngine
-from src.face_auth.domain.types import GateStatus, SecurityProfile, SessionState
+from src.face_auth.domain.types import (
+    FramePacket,
+    GateStatus,
+    SecurityProfile,
+    SessionState,
+)
 from src.face_auth.inference.face_detector import MTCNNFaceDetector
 from src.face_auth.inference.active_liveness import ActiveLivenessGate
 from src.face_auth.inference.adversarial_detector import (
@@ -43,7 +58,19 @@ def _source(args):
     return video_source(args.video) if args.video else webcam_source(args.camera)
 
 
-def _collect(source, frame_count: int):
+@dataclass(frozen=True)
+class CaptureBatch:
+    frames: tuple[FramePacket, ...]
+    cancelled: bool = False
+
+
+def _collect(
+    source: FrameSource,
+    frame_count: int,
+    *,
+    preview: OpenCVPreview | None = None,
+    purpose: str = "CAPTURE",
+) -> CaptureBatch:
     frames = []
     try:
         while len(frames) < frame_count:
@@ -51,16 +78,84 @@ def _collect(source, frame_count: int):
             if frame is None:
                 break
             frames.append(frame)
+            if preview is not None and not preview.show(
+                frame,
+                captured_frames=len(frames),
+                target_frames=frame_count,
+                purpose=purpose,
+            ):
+                return CaptureBatch(tuple(frames), cancelled=True)
     finally:
         source.close()
-    return frames
+        if preview is not None:
+            preview.close()
+    return CaptureBatch(tuple(frames))
+
+
+def _capture(args, purpose: str) -> CaptureBatch:
+    preview = OpenCVPreview() if _preview_enabled(args) else None
+    return _collect(_source(args), args.frames, preview=preview, purpose=purpose)
+
+
+def _preview_enabled(args) -> bool:
+    if args.preview is not None:
+        return args.preview
+    return args.camera is not None
+
+
+def _capture_failure(
+    error: RuntimeError,
+    *,
+    session_id: str | None = None,
+) -> int:
+    if isinstance(error, CaptureSourceError):
+        reason_code = error.reason_code
+        hint = (
+            "Allow camera access for the Python or terminal process and check "
+            "the camera index."
+            if reason_code == "CAMERA_UNAVAILABLE"
+            else "Check that the video path exists and uses a supported codec."
+        )
+    else:
+        reason_code = "PREVIEW_UNAVAILABLE"
+        hint = "Run in a desktop session or pass --no-preview for headless capture."
+    payload = {
+        "status": "CAPTURE_ERROR",
+        "reason_code": reason_code,
+        "message": str(error),
+        "hint": hint,
+    }
+    if session_id is not None:
+        payload["session_id"] = session_id
+        payload["state"] = SessionState.ERROR.value
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 3
+
+
+def _capture_cancelled(*, captured_frames: int, session_id: str | None = None) -> int:
+    payload = {
+        "status": "CAPTURE_CANCELLED",
+        "reason_code": "USER_CANCELLED",
+        "captured_frames": captured_frames,
+    }
+    if session_id is not None:
+        payload["session_id"] = session_id
+        payload["state"] = SessionState.RETRYABLE.value
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 130
 
 
 def enroll(args) -> int:
     detector = MTCNNFaceDetector(device=args.device)
     embedder = FaceNetEmbedder(device=args.device)
     quality = _quality_gate(args)
-    frames = _collect(_source(args), args.frames)
+    try:
+        capture = _capture(args, "ENROLLMENT")
+    except (CaptureSourceError, PreviewUnavailableError) as error:
+        return _capture_failure(error)
+    if capture.cancelled:
+        return _capture_cancelled(captured_frames=len(capture.frames))
+    frames = capture.frames
     crops = []
     for frame in frames:
         faces = detector.detect(frame.image_bgr)
@@ -154,7 +249,17 @@ def authenticate(args) -> int:
     )
     challenge = sessions.issue_challenge(session.session_id)
     sessions.move(session.session_id, SessionState.CAPTURING)
-    frames = _collect(_source(args), args.frames)
+    try:
+        capture = _capture(args, "AUTHENTICATION")
+    except (CaptureSourceError, PreviewUnavailableError) as error:
+        sessions.move(session.session_id, SessionState.ERROR)
+        return _capture_failure(error, session_id=session.session_id)
+    if capture.cancelled:
+        sessions.move(session.session_id, SessionState.RETRYABLE)
+        return _capture_cancelled(
+            captured_frames=len(capture.frames), session_id=session.session_id
+        )
+    frames = capture.frames
     if not frames:
         sessions.move(session.session_id, SessionState.ERROR)
         print(
@@ -338,6 +443,20 @@ def _capture_arguments(parser: argparse.ArgumentParser) -> None:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--video")
     source.add_argument("--camera", type=int)
+    preview = parser.add_mutually_exclusive_group()
+    preview.add_argument(
+        "--preview",
+        dest="preview",
+        action="store_true",
+        help="show the OpenCV capture preview",
+    )
+    preview.add_argument(
+        "--no-preview",
+        dest="preview",
+        action="store_false",
+        help="disable the preview for an intentional headless run",
+    )
+    parser.set_defaults(preview=None)
     parser.add_argument("--frames", type=int, default=20)
     parser.add_argument("--min-valid-frames", type=int, default=5)
     parser.add_argument("--device")

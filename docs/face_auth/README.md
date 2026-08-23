@@ -35,6 +35,7 @@ session creation
 | `application/evidence_service.py` | Nonce-bound ordered-frame evidence digest. |
 | `adapters/capture_base.py` | Common frame-source and bounded latest-frame buffer contract. |
 | `adapters/opencv_capture.py` | Recorded-video and webcam input. |
+| `adapters/opencv_preview.py` | Memory-only camera preview, progress overlay, and user cancellation. |
 | `inference/pipeline.py` | Baseline integrity, quality, all-face, and identity evidence. |
 | `inference/full_pipeline.py` | FULL-profile gate composition. |
 | `inference/pad_adapter.py` | Explicit TorchScript and ONNX PAD model adapters; no heuristic pass fallback. |
@@ -75,6 +76,10 @@ python -m unittest discover -s tests/integration -v
 ```
 
 Complete examples and troubleshooting are in `../14_LOCAL_RUNBOOK.md`.
+
+Webcam commands show a preview by default; recorded-video commands remain headless.
+Press `q` or `Esc` to cancel a preview capture. `--no-preview` is available for an
+intentional headless webcam run.
 
 ## Documentation map
 
