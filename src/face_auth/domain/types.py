@@ -120,4 +120,5 @@ class CaptureManifest:
     captured_at_end_monotonic: float
     frame_count: int
     dropped_frame_count: int
+    challenge_start_frame_id: int | None
     evidence_digest: str

@@ -180,6 +180,13 @@ FULL profile 실행 전 다음이 모두 필요하다.
 - Active liveness 평가에 충분한 post-challenge frame
 - Target-device validation evidence
 
+기본 preview를 사용하는 camera capture에서는 무작위 FULL challenge를 창에 표시하고,
+처음 표시한 프레임을 자동으로 결합한다. Recorded-video 또는 `--no-preview` FULL 실행은
+외부 challenge presenter가 기록한 `--challenge-start-frame-id N`이 필요하다. 이 값은
+캡처된 프레임을 가리키면서 뒤에 `--min-valid-frames`개 이상의 프레임을 남겨야 한다.
+그렇지 않으면 `CHALLENGE_BINDING_ERROR`를 반환한다. Preview가 경계를 자동 기록할 때는
+외부 경계를 함께 전달하지 않는다.
+
 `--pad-model`이 없으면 FULL은 fail closed하며 시작하지 않는다. Command와 gate map은
 `face_auth/README.md`를 따른다.
 

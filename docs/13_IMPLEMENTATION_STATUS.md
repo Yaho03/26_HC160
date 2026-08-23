@@ -63,7 +63,7 @@ threshold, sample 수, confidence interval과 limitation을 기록해야 보고 
 | Camera-motion gate | 구현됨 | Background motion estimator | Target-camera calibration. 현재 retry용 evidence |
 | Passive PAD | Capture/evaluation harness 구현·외부 artifact 차단 | TorchScript/ONNX adapter, fail-closed registry, capture CLI/protocol, manifest validator, evaluator와 APCER/BPCER | 승인 model·license/checksum, 승인 capture session, held-out physical 평가 |
 | PAD report provenance | 구현됨 | Run ID, Git state, manifest/model/source-video hash·byte, immutable output와 schema | 완료 report를 저장소 전체 run/artifact manifest에 등록 |
-| Active liveness | 구현됨 | Randomized challenge와 head-turn/blink logic | Physical replay 연구, 접근성 대안, threshold calibration |
+| Active liveness | 구현됨 | Randomized challenge, 실시간 동작 지시, 표시 프레임 경계 결합과 head-turn/blink logic | Physical replay 연구, 접근성 대안, threshold calibration |
 | Identity continuity | 구현됨 | Template-anchored temporal gate | Held-out person-switch·occlusion 평가 |
 | Adversarial inspection | Optional veto로 구현 | Transform-consistency와 feature-squeeze module | Clean calibration, adaptive attack, latency 평가 |
 | Scenario generation | 구현됨 | Manifest 기반 insertion/replay builder | Scenario 확장과 실제 physical attack capture |

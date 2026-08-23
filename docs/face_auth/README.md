@@ -83,6 +83,11 @@ Webcam command는 기본 preview를 표시하고 recorded-video command는 headl
 `Esc`로 preview capture를 취소한다. 의도적 headless webcam run에서만
 `--no-preview`를 사용한다.
 
+FULL preview에는 무작위 라이브니스 동작도 표시된다. 동작을 처음 표시한 프레임을
+챌린지 경계로 사용하며, 이후 프레임만 active liveness를 충족할 수 있다. Recorded 또는
+headless FULL capture를 구동하는 외부 UI는 `--challenge-start-frame-id`로 경계를 전달해야
+하며, 경계가 없거나 유효하지 않으면 fail closed한다.
+
 ## 6. 문서 지도
 
 - `API_CONTRACT.md` — State, gate, evidence와 token 계약

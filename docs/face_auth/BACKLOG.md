@@ -30,7 +30,7 @@
 | FR-108 | 구현됨 | Webcam preview, progress, cancel, headless override와 structured error test |
 | EXP-002 | Synthetic test 구현 | Genuine/impostor/multi-face/quality/error 자동화. Target-device evidence 대기 |
 | FR-201 | 부분 구현 | TorchScript/ONNX PAD adapter, report schema, immutable output, manifest validator, evaluator, APCER/BPCER·species metric 존재. 검증 checkpoint와 held-out physical data 없음 |
-| FR-202 | 부분 구현 | Random challenge logic 존재. Physical replay/accessibility 평가 대기 |
+| FR-202 | 부분 구현 | Random challenge logic, 실시간 동작 지시와 표시 이후 프레임 결합 존재. Physical replay/accessibility 평가 대기 |
 | FR-203 | 부분 구현 | Tracking·template continuity 존재. Held-out switch/occlusion 연구 대기 |
 | EXP-201 | 대기 | Physical print/screen/replay dataset과 report 없음 |
 | EXP-202 | 부분 구현 | Synthetic insertion scenario 통과. Physical/person-switch matrix와 delay report 없음 |

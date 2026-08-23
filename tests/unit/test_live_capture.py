@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -8,7 +9,15 @@ from src.face_auth.adapters.opencv_capture import (
     OpenCVCaptureSource,
 )
 from src.face_auth.adapters.opencv_preview import OpenCVPreview
-from src.face_auth.cli import _collect, _preview_enabled, build_parser
+from src.face_auth.cli import (
+    CaptureBatch,
+    ChallengeBindingError,
+    _challenge_instruction,
+    _collect,
+    _preview_enabled,
+    _resolve_challenge_start_frame_id,
+    build_parser,
+)
 from src.face_auth.domain.types import FramePacket
 
 
@@ -92,6 +101,66 @@ class LiveCaptureTest(unittest.TestCase):
         self.assertTrue(source.closed)
         self.assertTrue(preview.closed)
 
+    def test_collect_binds_challenge_to_first_displayed_frame(self):
+        source = FakeSource([packet(7), packet(8), packet(9)])
+        preview = FakePreview([True, True, True])
+
+        result = _collect(
+            source,
+            3,
+            preview=preview,
+            purpose="AUTHENTICATION",
+            instruction="TURN HEAD LEFT",
+        )
+
+        self.assertEqual(result.challenge_start_frame_id, 7)
+        self.assertEqual(
+            preview.calls[0][1]["instruction"], "TURN HEAD LEFT"
+        )
+
+    def test_headless_collect_does_not_invent_displayed_challenge_boundary(self):
+        source = FakeSource([packet(0), packet(1), packet(2)])
+
+        result = _collect(
+            source,
+            3,
+            instruction="TURN HEAD LEFT",
+        )
+
+        self.assertIsNone(result.challenge_start_frame_id)
+
+    def test_headless_full_requires_explicit_valid_challenge_boundary(self):
+        capture = CaptureBatch(tuple(packet(index) for index in range(6)))
+        args = SimpleNamespace(challenge_start_frame_id=None, min_valid_frames=3)
+        with self.assertRaises(ChallengeBindingError):
+            _resolve_challenge_start_frame_id(args, capture)
+
+        args.challenge_start_frame_id = 1
+        self.assertEqual(_resolve_challenge_start_frame_id(args, capture), 1)
+
+        args.challenge_start_frame_id = 4
+        with self.assertRaisesRegex(
+            ChallengeBindingError, "Not enough post-challenge frames"
+        ):
+            _resolve_challenge_start_frame_id(args, capture)
+
+    def test_preview_and_external_boundaries_cannot_be_mixed(self):
+        capture = CaptureBatch(
+            tuple(packet(index) for index in range(6)),
+            challenge_start_frame_id=0,
+        )
+        args = SimpleNamespace(challenge_start_frame_id=2, min_valid_frames=3)
+
+        with self.assertRaisesRegex(ChallengeBindingError, "Do not provide"):
+            _resolve_challenge_start_frame_id(args, capture)
+
+    def test_challenge_kinds_have_stable_user_instructions(self):
+        self.assertEqual(_challenge_instruction("HEAD_LEFT"), "TURN HEAD LEFT")
+        self.assertEqual(_challenge_instruction("HEAD_RIGHT"), "TURN HEAD RIGHT")
+        self.assertEqual(_challenge_instruction("BLINK"), "BLINK ONCE")
+        with self.assertRaises(ChallengeBindingError):
+            _challenge_instruction("SMILE")
+
     def test_camera_defaults_to_preview_and_can_be_disabled(self):
         parser = build_parser()
         camera_args = parser.parse_args(
@@ -130,6 +199,7 @@ class LiveCaptureTest(unittest.TestCase):
                 captured_frames=1,
                 target_frames=20,
                 purpose="AUTHENTICATION",
+                instruction="TURN HEAD LEFT",
             )
             rendered = imshow.call_args.args[1]
             preview.close()
