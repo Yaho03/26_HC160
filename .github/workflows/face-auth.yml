@@ -31,7 +31,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: face-auth-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: face-auth-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
