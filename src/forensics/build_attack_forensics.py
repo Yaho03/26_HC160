@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from src.forensics.privacy import artifact_reference, pseudonym
+
 
 DEFAULT_HANDOFF_INDEX = Path(
     "tmp_verification_defense_latest/verification_defense/attack_handoff_jpeg_index.csv"
@@ -102,6 +104,14 @@ def parse_float(value: Any, default: float | None = None) -> float | None:
 
 def parse_bool(value: Any) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y"}
+
+
+def required_float(row: dict[str, str], field: str) -> float:
+    value = parse_float(row.get(field))
+    if value is None:
+        sample_id = row.get("sample_id", "<unknown>")
+        raise ValueError(f"{sample_id}: required numeric field is missing or invalid: {field}")
+    return value
 
 
 def attack_family(attack: str) -> str:
@@ -208,10 +218,11 @@ def strongest_defense_state(defense_rows: list[dict[str, str]]) -> dict[str, Any
     bypassed = [row for row in defense_rows if parse_bool(row.get("accepted_after_defense"))]
     bypassed_names = sorted({row.get("defense", "") for row in bypassed if row.get("defense")})
     strong_defense_bypassed = any(name in {"smoothing", "dae", "diffpure"} for name in bypassed_names)
-    selected = bypassed[0] if bypassed else max(
-        defense_rows,
-        key=lambda row: parse_float(row.get("similarity_after_defense"), -1.0) or -1.0,
-    )
+    def defense_similarity(row: dict[str, str]) -> float:
+        value = parse_float(row.get("similarity_after_defense"))
+        return value if value is not None else -1.0
+
+    selected = bypassed[0] if bypassed else max(defense_rows, key=defense_similarity)
     return {
         "defense": selected.get("defense", ""),
         "bypassed_defenses": ";".join(bypassed_names),
@@ -227,12 +238,14 @@ def strongest_defense_state(defense_rows: list[dict[str, str]]) -> dict[str, Any
 def build_context(rows: list[dict[str, str]]) -> dict[str, Any]:
     source_targets: dict[str, set[str]] = defaultdict(set)
     target_accept_counts: Counter[str] = Counter()
+    pair_attempt_counts: Counter[tuple[str, str]] = Counter()
     for row in rows:
         source = row.get("source_name", "")
         target = row.get("target_name", "")
         if source and target:
             source_targets[source].add(target)
-        if parse_bool(row.get("accepted_after_attack")):
+            pair_attempt_counts[(source, target)] += 1
+        if target and parse_bool(row.get("accepted_after_attack")):
             target_accept_counts[target] += 1
 
     high_risk_targets = {
@@ -245,7 +258,55 @@ def build_context(rows: list[dict[str, str]]) -> dict[str, Any]:
         "high_risk_targets": high_risk_targets,
         "multi_target_sources": multi_target_sources,
         "target_accept_counts": target_accept_counts,
+        "pair_attempt_counts": pair_attempt_counts,
     }
+
+
+def rule_findings(
+    row: dict[str, str],
+    defense_state: dict[str, Any],
+    context: dict[str, Any],
+    threshold_margin: float,
+) -> list[dict[str, str]]:
+    findings: list[dict[str, str]] = []
+    accepted = parse_bool(row.get("accepted_after_attack"))
+    similarity_before = parse_float(row.get("similarity_before"))
+    l2 = parse_float(row.get("l2"))
+    linf = parse_float(row.get("linf"))
+    queries = parse_float(row.get("queries_used") or row.get("max_queries"))
+    source = row.get("source_name", "")
+    target = row.get("target_name", "")
+    repeated_attempts = context["pair_attempt_counts"].get((source, target), 0)
+
+    def add(rule_id: str, reason: str) -> None:
+        findings.append({"rule_id": rule_id, "reason": reason})
+
+    if accepted and threshold_margin >= 0.05:
+        add("FA-R001", f"accepted=true, threshold_margin={threshold_margin:.6f} >= 0.050000")
+    if repeated_attempts >= 2 and -0.03 <= threshold_margin <= 0.03:
+        add(
+            "FA-R002",
+            f"source-target attempts={repeated_attempts}, threshold_margin={threshold_margin:.6f} within ±0.030000",
+        )
+    if queries is not None and queries >= 100:
+        add("FA-R003", f"queries_used={queries:.0f} >= 100")
+    if defense_state["strong_defense_bypassed"]:
+        add("FA-R004", f"strong defenses bypassed={defense_state['bypassed_defenses']}")
+    if source and source in context["multi_target_sources"]:
+        add("FA-R005", f"source={pseudonym(source, 'source')} targeted multiple identities")
+    if target and target in context["high_risk_targets"]:
+        count = context["target_accept_counts"][target]
+        add(
+            "FA-R006",
+            f"target={pseudonym(target, 'target')} accepted attack attempts={count} >= 10",
+        )
+    if similarity_before is not None and similarity_before >= 0.30:
+        add("FA-R007", f"negative-pair similarity_before={similarity_before:.6f} >= 0.300000")
+    low_l2 = l2 is not None and l2 <= 1.25
+    low_linf = linf is not None and linf <= 0.0051
+    if accepted and (low_l2 or low_linf):
+        add("FA-R008", f"accepted=true, l2={l2}, linf={linf}; low-norm boundary met")
+    return findings
 
 
 def rule_hits(
@@ -254,30 +315,7 @@ def rule_hits(
     context: dict[str, Any],
     threshold_margin: float,
 ) -> list[str]:
-    hits = []
-    accepted = parse_bool(row.get("accepted_after_attack"))
-    similarity_before = parse_float(row.get("similarity_before"), 0.0) or 0.0
-    l2 = parse_float(row.get("l2"), 999.0) or 999.0
-    linf = parse_float(row.get("linf"), 999.0) or 999.0
-    queries = parse_float(row.get("queries_used") or row.get("max_queries"), 0.0) or 0.0
-
-    if accepted and threshold_margin >= 0.05:
-        hits.append("FA-R001")
-    if -0.03 <= threshold_margin <= 0.03:
-        hits.append("FA-R002")
-    if queries >= 100:
-        hits.append("FA-R003")
-    if defense_state["strong_defense_bypassed"]:
-        hits.append("FA-R004")
-    if row.get("source_name") in context["multi_target_sources"]:
-        hits.append("FA-R005")
-    if row.get("target_name") in context["high_risk_targets"]:
-        hits.append("FA-R006")
-    if similarity_before >= 0.30:
-        hits.append("FA-R007")
-    if accepted and (l2 <= 1.25 or linf <= 0.0051):
-        hits.append("FA-R008")
-    return hits
+    return [finding["rule_id"] for finding in rule_findings(row, defense_state, context, threshold_margin)]
 
 
 def score_from_hits(
@@ -316,11 +354,12 @@ def build_sessions(
     sessions = []
     for idx, row in enumerate(handoff_rows, start=1):
         sample_id = row["sample_id"]
-        threshold = parse_float(row.get("threshold"), 0.0) or 0.0
-        similarity_after = parse_float(row.get("similarity_after_attack"), 0.0) or 0.0
+        threshold = required_float(row, "threshold")
+        similarity_after = required_float(row, "similarity_after_attack")
         threshold_margin = similarity_after - threshold
         defense_state = strongest_defense_state(defense_by_sample.get(sample_id, []))
-        hits = rule_hits(row, defense_state, context, threshold_margin)
+        findings = rule_findings(row, defense_state, context, threshold_margin)
+        hits = [finding["rule_id"] for finding in findings]
         accepted = parse_bool(row.get("accepted_after_attack"))
         risk_score = score_from_hits(
             hits,
@@ -335,9 +374,9 @@ def build_sessions(
             "session_id": f"faceauth_sess_{idx:06d}",
             "attempt_id": sample_id,
             "timestamp": timestamp.isoformat(),
-            "account_id": f"acct_{row.get('target_name', 'unknown')}",
-            "source_identity": row.get("source_name", ""),
-            "target_identity": row.get("target_name", ""),
+            "account_id": pseudonym(row.get("target_name", ""), "account"),
+            "source_identity": pseudonym(row.get("source_name", ""), "source"),
+            "target_identity": pseudonym(row.get("target_name", ""), "target"),
             "pair_id": row.get("pair_id", ""),
             "attack": row.get("attack", ""),
             "attack_family": family,
@@ -368,10 +407,11 @@ def build_sessions(
             "risk_score": risk_score,
             "risk_level": risk_level(risk_score),
             "rule_hits": ";".join(hits),
-            "source_file": row.get("source_file", ""),
-            "target_enroll_file": row.get("target_enroll_file", ""),
-            "adv_file": row.get("adv_file", ""),
-            "perturbation_file": row.get("perturbation_file", ""),
+            "rule_reasons": json.dumps(findings, ensure_ascii=False, sort_keys=True),
+            "source_file": artifact_reference(row.get("source_file", "")),
+            "target_enroll_file": artifact_reference(row.get("target_enroll_file", "")),
+            "adv_file": artifact_reference(row.get("adv_file", "")),
+            "perturbation_file": artifact_reference(row.get("perturbation_file", "")),
         })
     return sessions
 

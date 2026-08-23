@@ -30,6 +30,7 @@ def summarize_file(path: Path) -> dict[str, object]:
     success_from_rejects = [parse_bool(row["success_from_reject"]) for row in rows]
     accepted_before = [parse_bool(row["accepted_before"]) for row in rows]
     accepted_after = [parse_bool(row["accepted_after"]) for row in rows]
+    query_values = [float(row["queries_used"]) for row in rows if row.get("queries_used", "").strip()]
 
     return {
         "metadata_file": str(path),
@@ -37,6 +38,7 @@ def summarize_file(path: Path) -> dict[str, object]:
         "epsilon": first.get("epsilon", ""),
         "alpha": first.get("alpha", ""),
         "steps": first.get("steps", ""),
+        "max_queries": first.get("max_queries", ""),
         "only_initial_rejects": first.get("only_initial_rejects", ""),
         "samples": len(rows),
         "accepted_before_rate": mean([float(v) for v in accepted_before]),
@@ -49,6 +51,7 @@ def summarize_file(path: Path) -> dict[str, object]:
         "avg_l2": mean([float(row["l2"]) for row in rows]),
         "avg_linf": mean([float(row["linf"]) for row in rows]),
         "avg_time_sec": mean([float(row["time_sec"]) for row in rows]),
+        "avg_queries_used": mean(query_values) if query_values else "",
     }
 
 

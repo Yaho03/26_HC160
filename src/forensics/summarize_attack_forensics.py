@@ -9,6 +9,15 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from src.forensics.build_attack_forensics import (
+    build_context,
+    build_summary,
+    risk_level,
+    rule_findings,
+    score_from_hits,
+)
+from src.forensics.privacy import sanitize_identity_and_paths
+
 
 RISK_ORDER = ["critical", "high", "medium", "low"]
 
@@ -49,6 +58,47 @@ def pct(numerator: int, denominator: int) -> float:
 
 def split_rules(value: str) -> list[str]:
     return [rule for rule in value.split(";") if rule]
+
+
+def refresh_and_sanitize_sessions(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Recompute rule evidence, then remove direct identities and file paths."""
+    context_rows = [
+        dict(row)
+        | {
+            "source_name": row.get("source_identity", ""),
+            "target_name": row.get("target_identity", ""),
+        }
+        for row in rows
+    ]
+    context = build_context(context_rows)
+    sanitized_rows: list[dict[str, Any]] = []
+    for original, context_row in zip(rows, context_rows):
+        defense_state = {
+            "defense_bypassed": parse_bool(original.get("defense_bypassed", "")),
+            "strong_defense_bypassed": parse_bool(original.get("strong_defense_bypassed", "")),
+            "bypassed_defenses": original.get("bypassed_defenses", ""),
+        }
+        margin = parse_float(original.get("threshold_margin", ""))
+        findings = rule_findings(context_row, defense_state, context, margin)
+        hits = [finding["rule_id"] for finding in findings]
+        accepted = parse_bool(original.get("accepted_after_attack", ""))
+        score = score_from_hits(
+            hits,
+            accepted,
+            defense_state["defense_bypassed"],
+            defense_state["strong_defense_bypassed"],
+        )
+        refreshed: dict[str, Any] = dict(original)
+        refreshed.update(
+            {
+                "risk_score": score,
+                "risk_level": risk_level(score),
+                "rule_hits": ";".join(hits),
+                "rule_reasons": json.dumps(findings, ensure_ascii=False, sort_keys=True),
+            }
+        )
+        sanitized_rows.append(sanitize_identity_and_paths(refreshed))
+    return sanitized_rows
 
 
 def build_overview(rows: list[dict[str, str]]) -> dict[str, Any]:
@@ -224,6 +274,54 @@ def build_markdown(
     return "\n".join(lines) + "\n"
 
 
+def write_plots(
+    rows: list[dict[str, Any]],
+    family_matrix: list[dict[str, Any]],
+    out_dir: Path,
+) -> None:
+    """Create deterministic, identity-free dashboard plots."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    matplotlib.rcParams["svg.hashsalt"] = "hc160-forensics-v1"
+    import matplotlib.pyplot as plt
+
+    families = sorted({str(row["attack_family"]) for row in rows})
+    palette = plt.get_cmap("tab10")
+    colors = {family: palette(index % 10) for index, family in enumerate(families)}
+
+    figure, axis = plt.subplots(figsize=(8, 6), constrained_layout=True)
+    for family in families:
+        selected = [row for row in rows if row["attack_family"] == family]
+        axis.scatter(
+            [parse_float(str(row["similarity_before"])) for row in selected],
+            [parse_float(str(row["similarity_after_attack"])) for row in selected],
+            s=12,
+            alpha=0.45,
+            color=colors[family],
+            label=family,
+        )
+    thresholds = sorted({parse_float(str(row["threshold"])) for row in rows})
+    for threshold in thresholds:
+        axis.axhline(threshold, color="#d62728", linewidth=1, linestyle="--", alpha=0.55)
+    axis.plot([-1, 1], [-1, 1], color="#666666", linewidth=1, linestyle=":")
+    axis.set(xlabel="Cosine similarity before attack", ylabel="Cosine similarity after attack")
+    axis.set_title("Attack similarity shift and verification thresholds")
+    axis.legend(title="Attack family", fontsize=8)
+    figure.savefig(out_dir / "attack_similarity_panel.png", dpi=160, metadata={"Software": "HC160"})
+    plt.close(figure)
+
+    figure, axis = plt.subplots(figsize=(8, 5), constrained_layout=True)
+    labels = [str(row["attack_family"]) for row in family_matrix]
+    accept_rates = [float(row["attack_accept_rate"]) * 100 for row in family_matrix]
+    bars = axis.bar(labels, accept_rates, color=[colors[label] for label in labels])
+    axis.set(ylim=(0, 100), ylabel="Accepted after attack (%)")
+    axis.set_title("Targeted attack acceptance rate by family")
+    axis.bar_label(bars, labels=[f"{value:.1f}%" for value in accept_rates], padding=3, fontsize=8)
+    figure.savefig(out_dir / "attack_family_overview.png", dpi=160, metadata={"Software": "HC160"})
+    plt.close(figure)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sessions", type=Path, default=Path("outputs/forensics/attack_sessions.csv"))
@@ -232,13 +330,23 @@ def main() -> None:
     parser.add_argument("--markdown", type=Path, default=Path("docs/faceauth_attack_forensics_results_2026-06-29.md"))
     args = parser.parse_args()
 
-    rows = read_csv(args.sessions)
+    rows = refresh_and_sanitize_sessions(read_csv(args.sessions))
     overview = build_overview(rows)
     family_matrix = build_family_matrix(rows)
     rule_summary = build_rule_summary(rows)
     top_risk = build_top_risk(rows, args.top_limit)
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    write_csv(args.out_dir / "attack_sessions.csv", rows)
+    summary_rows = [
+        dict(row)
+        | {
+            "accepted_after_attack": parse_bool(str(row.get("accepted_after_attack", ""))),
+            "defense_bypassed": parse_bool(str(row.get("defense_bypassed", ""))),
+        }
+        for row in rows
+    ]
+    write_csv(args.out_dir / "attack_risk_summary.csv", build_summary(summary_rows))
     (args.out_dir / "dashboard_overview.json").write_text(
         json.dumps(overview, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -246,6 +354,7 @@ def main() -> None:
     write_csv(args.out_dir / "attack_family_matrix.csv", family_matrix)
     write_csv(args.out_dir / "rule_hit_summary.csv", rule_summary)
     write_csv(args.out_dir / "top_risk_sessions.csv", top_risk)
+    write_plots(rows, family_matrix, args.out_dir)
 
     args.markdown.parent.mkdir(parents=True, exist_ok=True)
     args.markdown.write_text(

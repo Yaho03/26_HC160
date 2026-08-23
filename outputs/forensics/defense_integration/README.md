@@ -20,6 +20,10 @@
 
 두 표는 평가 기준과 분모가 달라 합산하거나 직접 순위를 매기지 않는다.
 
+공개 산출물의 source/target identity와 계정 ID는 안정적인 pseudonym으로 바꾸고,
+이미지 경로는 `artifact_<hash>` 참조로 치환했다. 원본 인물명과 로컬·Kaggle 경로는
+대시보드 전달 파일에 포함하지 않는다.
+
 ## 산출물
 
 - `defense_results_by_sample_id.csv`: 공격 원장+방어 결과 long form, 848행
@@ -28,6 +32,9 @@
 - `adversarial_training_defense_summary.csv`: 적대적 학습 분리 집계
 - `defense_integration_overview.json`: 대시보드용 평가 그룹 JSON
 - `defense_join_audit.json`: 기존 2,000건 코호트와의 ID 계보 감사
+
+상위 `outputs/forensics/`에는 비식별 세션 데이터와 함께
+`attack_similarity_panel.png`, `attack_family_overview.png` 시각화를 생성한다.
 
 ## 조인 상태
 
@@ -44,6 +51,6 @@
 
 ## 입력 해시
 
-- `defense_results_by_sample_id.csv`: `525ee2f585244af110bc3ff7092498957b907372c6cfce29cb7256255f4b8a93`
+- `defense_results_by_sample_id.csv`: `965ed2277e21892461213f8446f387333d28984ee602f98b77b482dc5bcddb24`
 - `defense_handoff.validation.json`: `77ff984ff96b08d7177560dfaf1d501a75b4351affeb94e663bfea9e296aa721`
-- `attack_sessions.csv`: `29a1dd4c02388067ea931dc8e68e1861ba15b66700d06c2ea8c260bb8c3f4096`
+- `attack_sessions.csv`: `62f27a2b0ab80087cbbb3d64473089be9fdfb40844dd67452dbf7002939852ae`

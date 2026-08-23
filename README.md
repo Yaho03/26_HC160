@@ -1,6 +1,95 @@
 # 26_HC160
 
-Hanium AML project for targeted adversarial attacks and defense evaluation on face identity recognition.
+한이음 HC160 프로젝트: 얼굴 인증/인식 모델을 대상으로 targeted adversarial attack,
+방어, 탐지, 재현 가능한 실험 계약을 정리하는 연구 저장소다.
+
+## 협업 및 문서 작성 규칙
+
+문서, 이슈, PR 본문은 기본적으로 한국어로 작성한다. 코드 식별자, 명령어, 파일명,
+모델명, 지표명(FAR, FRR, ASR 등), 요구사항 ID(FR-XXX, EXP-XXX)는 원문 영어를
+유지한다.
+
+- 협업 가이드: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- 이슈 템플릿: [.github/ISSUE_TEMPLATE](./.github/ISSUE_TEMPLATE)
+- PR 템플릿: [.github/PULL_REQUEST_TEMPLATE.md](./.github/PULL_REQUEST_TEMPLATE.md)
+
+이 저장소는 얼굴 이미지, 임베딩, 인증 템플릿, 모델 가중치 같은 민감 산출물을 Git에
+커밋하지 않는다. 실험 결과를 보고할 때는 데이터 split, seed, 모델/threshold/policy
+버전, 실패/오류/제외 표본 수를 함께 적는다.
+
+## Session-based face authentication prototype
+
+The new implementation lives under `src/face_auth/`. It separates enrollment from authentication and adds session state, fail-closed gate policy, challenge/nonce issuance, and a purpose/context-bound one-time result token.
+
+Run the current tests:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Create a multi-frame prototype template from a video:
+
+```bash
+python -m src.face_auth.cli enroll \
+  --video path/to/enrollment.mp4 \
+  --frames 30 \
+  --min-valid-frames 5 \
+  --output local_templates/user-1.npz
+```
+
+Run the first recorded-video authentication slice:
+
+```bash
+python -m src.face_auth.cli authenticate \
+  --video path/to/probe.mp4 \
+  --template local_templates/user-1.npz \
+  --threshold 0.60 \
+  --threshold-version local-validation-v1 \
+  --user-id user-1 \
+  --context-hash demo-context-a
+```
+
+The threshold above is an example only. It must be calibrated on a validation split. The CLI currently reports `BASELINE_ONLY`; it is not the complete PAD/liveness security profile. Prototype templates are not encrypted and must not be committed.
+
+Run the `FULL` reference profile with a separately validated TorchScript PAD model:
+
+```bash
+python -m src.face_auth.cli authenticate \
+  --video path/to/probe.mp4 \
+  --template local_templates/user-1.npz \
+  --profile FULL \
+  --threshold 0.60 \
+  --threshold-version identity-validation-v1 \
+  --pad-model local_models/pad-v1.ts \
+  --pad-model-version pad-v1 \
+  --pad-live-threshold 0.80 \
+  --pad-threshold-version pad-validation-v1 \
+  --user-id user-1
+```
+
+`FULL` additionally requires camera-motion, content-replay, passive PAD, randomized head-turn liveness, and identity-continuity gates. It refuses to start without a PAD model. Feature-squeezing inspection can be enabled with a validation-derived `--adversarial-threshold`.
+
+An approved original Open Model Zoo `anti-spoof-mn3` ONNX artifact can instead use `--pad-runtime onnx` after installing `requirements-pad-onnx.txt`. This adds a runtime adapter, not a validation claim; calibrate its threshold and evaluate it on held-out physical attacks before reporting FULL-profile security.
+
+Build a deterministic mid-session insertion video:
+
+```bash
+python -m src.attack_scenarios.cli \
+  --manifest configs/scenarios/mid_frame_insertion.example.json
+```
+
+Calibrate thresholds on validation data only:
+
+```bash
+python -m src.face_auth.evaluation.calibrate_cli \
+  --input configs/thresholds.validation.example.csv \
+  --output local_thresholds/validation-v1.json \
+  --version validation-v1
+```
+
+The camera and quality defaults are starting values, not accuracy claims. Use `--min-blur-variance` and the other explicit threshold options only with a recorded validation artifact.
+
+Start with the [face-auth documentation](docs/face_auth/README.md) for the module map and security profiles. See the [repository implementation status](docs/13_IMPLEMENTATION_STATUS.md) and [local runbook](docs/14_LOCAL_RUNBOOK.md) for verified scope, remaining gaps, and copy-ready commands.
 
 ## Attack pipeline
 
@@ -53,6 +142,8 @@ Final attack result files are not committed to Git because they contain generate
 The first verification baseline reuses the trained ResNet-50 identity model as a feature extractor. It takes the feature vector before the final classification layer, compares two face images with cosine similarity, and reports verification metrics such as FAR, FRR, EER, and ROC-AUC.
 
 This is a bridge step from identity classification to face-authentication verification. A later version can replace the ResNet feature extractor with an ArcFace/InsightFace embedding model while keeping the same pair CSV and metric format.
+
+The commands below are the historical bridge workflow. Its threshold lifecycle does not satisfy the new calibration/test separation contract. New reportable experiments must create provenance-bound disjoint score exports with `python -m src.evaluation.facenet_score_export_cli`, then use `python -m src.evaluation.verification_baseline_cli`; see the [face verification specification](docs/05_FACE_VERIFICATION_SPEC.md).
 
 Build test pairs:
 
@@ -148,7 +239,9 @@ Defense source modules:
 
 Verification 방어 평가 모듈은 `src/verification/defenses/`로 분리되어 있습니다 (FaceNet 임베딩 기반 cosine similarity 평가, classification 방어와 별도 트랙).
 
-## 실험 결과
+## 과거 분류 방어 결과
+
+아래 표는 기존 classification 방어 파이프라인이 남긴 역사적 결과다. 새 얼굴 검증 프로토콜이나 실시간 인증의 보안 성능으로 해석하면 안 된다. 적대적 학습의 held-out 분리, clean 성능 보존, 성공률 분모를 새 계약으로 재검증하기 전에는 공식 비교 수치로 사용하지 않는다.
 
 | 방어 기법 | 방어 성공률 | 복원율 |
 |-----------|-----------|--------|

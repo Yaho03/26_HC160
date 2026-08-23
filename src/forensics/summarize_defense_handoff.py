@@ -9,9 +9,17 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from src.forensics.privacy import sanitize_identity_and_paths
+
 
 PREPROCESSING = {"jpeg", "smoothing", "bitdepth"}
 DEFENSES = ("jpeg", "smoothing", "bitdepth", "adv_training")
+EXPECTED_EVALUATION_BASIS = {
+    "jpeg": "artifact_reload",
+    "smoothing": "artifact_reload",
+    "bitdepth": "artifact_reload",
+    "adv_training": "legacy_record",
+}
 REQUIRED_DEFENSE_FIELDS = {
     "sample_id",
     "defense",
@@ -106,7 +114,7 @@ def build_session_rows(rows: list[dict[str, str]]) -> list[dict[str, object]]:
                     f"{prefix}_defense_time_sec": row.get("defense_time_sec", ""),
                 }
             )
-        sessions.append(session)
+        sessions.append(sanitize_identity_and_paths(session))
     return sessions
 
 
@@ -116,13 +124,16 @@ def build_overview(
     adversarial_training: list[dict[str, str | int]],
 ) -> dict[str, object]:
     def metrics(items: list[dict[str, str | int]]) -> dict[str, object]:
+        def optional_rate(value: str | int) -> float | None:
+            return float(str(value)) if str(value) else None
+
         return {
             str(item["defense"]): {
                 "eligible_attacks": item["eligible_attacks"],
                 "defense_bypassed": item["defense_bypassed"],
-                "defense_bypass_rate": float(str(item["defense_bypass_rate"])),
+                "defense_bypass_rate": optional_rate(item["defense_bypass_rate"]),
                 "defense_success": item["defense_success"],
-                "defense_success_rate": float(str(item["defense_success_rate"])),
+                "defense_success_rate": optional_rate(item["defense_success_rate"]),
             }
             for item in items
         }
@@ -220,6 +231,15 @@ def validate(rows: list[dict[str, str]]) -> None:
         raise ValueError(f"Duplicate sample/defense keys: {duplicate_keys[:3]}")
     defenses_by_sample: defaultdict[str, set[str]] = defaultdict(set)
     for row in rows:
+        defense = row["defense"]
+        if defense not in EXPECTED_EVALUATION_BASIS:
+            raise ValueError(f"Unknown defense: {defense}")
+        expected_basis = EXPECTED_EVALUATION_BASIS[defense]
+        if row["evaluation_basis"] != expected_basis:
+            raise ValueError(
+                f"{row['sample_id']}/{defense}: evaluation_basis must be {expected_basis}, "
+                f"got {row['evaluation_basis']}"
+            )
         defenses_by_sample[row["sample_id"]].add(row["defense"])
     incomplete = [sample_id for sample_id, defenses in defenses_by_sample.items() if defenses != set(DEFENSES)]
     if incomplete:
@@ -267,7 +287,8 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     preprocessing = summarize(defense_rows, PREPROCESSING)
     adversarial_training = summarize(defense_rows, {"adv_training"})
-    write_csv(args.out_dir / "defense_results_by_sample_id.csv", defense_rows)
+    published_defense_rows = [sanitize_identity_and_paths(row) for row in defense_rows]
+    write_csv(args.out_dir / "defense_results_by_sample_id.csv", published_defense_rows)
     write_csv(args.out_dir / "defense_evaluation_sessions.csv", build_session_rows(defense_rows))
     write_csv(args.out_dir / "preprocessing_defense_summary.csv", preprocessing)
     write_csv(args.out_dir / "adversarial_training_defense_summary.csv", adversarial_training)
