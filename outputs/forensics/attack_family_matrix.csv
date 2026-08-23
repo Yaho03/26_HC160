@@ -1,0 +1,5 @@
+attack_family,sessions,accepted_after_attack,attack_accept_rate,critical,high,medium,low,avg_risk_score
+adaptive,300,27,0.09,0,18,11,271,24.663
+fgsm,400,245,0.6125,11,208,26,155,48.373
+pgd,1000,702,0.702,41,608,53,298,53.089
+square,300,7,0.0233,0,7,293,0,31.477

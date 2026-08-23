@@ -1,0 +1,21 @@
+{
+  "total_sessions": 2000,
+  "accepted_after_attack": 981,
+  "attack_accept_rate": 0.4905,
+  "critical_sessions": 52,
+  "high_or_critical_sessions": 893,
+  "high_or_critical_rate": 0.4465,
+  "avg_risk_score": 44.64,
+  "attack_family_counts": {
+    "adaptive": 300,
+    "fgsm": 400,
+    "pgd": 1000,
+    "square": 300
+  },
+  "risk_level_counts": {
+    "critical": 52,
+    "high": 841,
+    "medium": 383,
+    "low": 724
+  }
+}

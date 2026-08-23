@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "cohort": "defense_evaluation",
+  "sessions": 212,
+  "result_rows": 848,
+  "evaluation_groups": {
+    "preprocessing": {
+      "evaluation_basis": "artifact_reload",
+      "denominator": "attack_success_before_defense=true per preprocessing defense",
+      "defenses": {
+        "bitdepth": {
+          "eligible_attacks": 171,
+          "defense_bypassed": 131,
+          "defense_bypass_rate": 0.766082,
+          "defense_success": 40,
+          "defense_success_rate": 0.233918
+        },
+        "jpeg": {
+          "eligible_attacks": 171,
+          "defense_bypassed": 171,
+          "defense_bypass_rate": 1.0,
+          "defense_success": 0,
+          "defense_success_rate": 0.0
+        },
+        "smoothing": {
+          "eligible_attacks": 171,
+          "defense_bypassed": 4,
+          "defense_bypass_rate": 0.023392,
+          "defense_success": 167,
+          "defense_success_rate": 0.976608
+        }
+      }
+    },
+    "adversarial_training": {
+      "evaluation_basis": "legacy_record",
+      "denominator": "attack_success_before_defense=true in adversarial-training evaluation",
+      "defenses": {
+        "adv_training": {
+          "eligible_attacks": 212,
+          "defense_bypassed": 4,
+          "defense_bypass_rate": 0.018868,
+          "defense_success": 208,
+          "defense_success_rate": 0.981132
+        }
+      }
+    }
+  },
+  "combined_bypass_rate": null,
+  "note": "Evaluation groups use different bases and must not be combined."
+}

@@ -6,7 +6,7 @@
 
 - 저장소: `Yaho03/26_HC160`에서 이어진 로컬 이력
 - 기준 커밋: `795b3bbce889c45a3a3cddac1049394785f783bc`
-- 작업 브랜치: `codex/realtime-face-auth-v2`
+- 작업 브랜치: `face-auth/ARCH-001-realtime-face-auth`
 
 ## 주요 파일 해시
 
