@@ -8,6 +8,16 @@ from src.face_auth.adapters.capture_base import FrameSource
 from src.face_auth.domain.types import FramePacket
 
 
+class CaptureSourceError(RuntimeError):
+    def __init__(self, source: int | str) -> None:
+        self.source = source
+        self.reason_code = (
+            "CAMERA_UNAVAILABLE" if isinstance(source, int) else "VIDEO_UNAVAILABLE"
+        )
+        source_kind = "camera" if isinstance(source, int) else "video"
+        super().__init__(f"Cannot open {source_kind} capture source: {source}")
+
+
 class OpenCVCaptureSource(FrameSource):
     def __init__(self, source: int | str, *, backend: int | None = None) -> None:
         self.source = source
@@ -18,7 +28,7 @@ class OpenCVCaptureSource(FrameSource):
         )
         if not self._capture.isOpened():
             self._capture.release()
-            raise RuntimeError(f"Cannot open capture source: {source}")
+            raise CaptureSourceError(source)
         self._next_frame_id = 0
 
     def read(self) -> FramePacket | None:
