@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/artifact-reference.schema.json",
+  "title": "HC160 artifact reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "kind",
+    "relative_uri",
+    "sha256",
+    "bytes",
+    "mime_type",
+    "sensitivity",
+    "encryption",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "artifact_id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["dataset", "pair_manifest", "clean_image", "adversarial_image", "defended_image", "perturbation", "embedding", "checkpoint", "threshold", "table", "figure", "report", "decision", "other"]},
+    "relative_uri": {"type": "string", "minLength": 1, "not": {"pattern": "^(?:/|[A-Za-z]:[\\\\/])"}},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "bytes": {"type": "integer", "minimum": 0},
+    "mime_type": {"type": "string", "minLength": 1},
+    "sensitivity": {"enum": ["public", "internal", "sensitive_biometric", "restricted"]},
+    "encryption": {"enum": ["none", "at_rest", "client_side"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "parent_artifact_id": {"type": ["string", "null"]},
+    "retention_until": {"type": ["string", "null"], "format": "date"},
+    "producer_run_id": {"type": ["string", "null"]}
+  }
+}

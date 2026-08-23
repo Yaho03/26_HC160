@@ -1,0 +1,14 @@
+{
+  "scenario_id": "ATK-10-frame-replay-example",
+  "base_video": "../../local_scenarios/genuine.mp4",
+  "output_video": "../../local_scenarios/generated/frame-replay.mp4",
+  "fps": 20.0,
+  "events": [
+    {
+      "type": "repeat_frame",
+      "source_index": 10,
+      "at_index": 20,
+      "count": 8
+    }
+  ]
+}

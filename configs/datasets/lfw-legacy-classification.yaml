@@ -1,0 +1,12 @@
+schema_version: "1.0"
+dataset_id: lfw-legacy-classification
+purpose: historical_baseline_only
+task: closed_set_classification
+manifest_path: data/manifests/lfw-legacy-classification.jsonl
+split_path: data/splits/lfw-legacy-classification.json
+preprocessing:
+  image_size: [224, 224]
+  color_space: RGB
+notes:
+  - Do not compare classification accuracy directly with verification TAR/FAR.
+  - Preserve the original split definition and its hash when reproducing legacy results.
