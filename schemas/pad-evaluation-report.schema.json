@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/pad-evaluation-report.schema.json",
+  "title": "HC160 passive PAD evaluation report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "created_at",
+    "code",
+    "manifest",
+    "mode",
+    "split",
+    "model",
+    "threshold",
+    "calibration",
+    "evaluation_config",
+    "metrics",
+    "samples"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "code": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_commit", "dirty_worktree"],
+      "properties": {
+        "git_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "dirty_worktree": {"type": "boolean"}
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "row_count", "selected_row_count"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "row_count": {"type": "integer", "minimum": 1},
+        "selected_row_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "mode": {"enum": ["calibrate", "evaluate"]},
+    "split": {"enum": ["calibration", "test"]},
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime",
+        "version",
+        "input_size",
+        "output_kind",
+        "live_class_index",
+        "preprocessing",
+        "sha256"
+      ],
+      "properties": {
+        "runtime": {"enum": ["torchscript", "onnx"]},
+        "version": {"type": "string", "minLength": 1},
+        "input_size": {"type": "integer", "minimum": 1},
+        "input_name": {"type": "string", "minLength": 1},
+        "output_name": {"type": "string", "minLength": 1},
+        "output_kind": {"enum": ["logits", "probability"]},
+        "live_class_index": {"type": "integer", "minimum": 0},
+        "providers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "preprocessing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color_order", "pixel_scale", "mean", "divisor"],
+          "properties": {
+            "color_order": {"const": "RGB"},
+            "pixel_scale": {"type": "number", "exclusiveMinimum": 0},
+            "mean": {"$ref": "#/$defs/channelVector"},
+            "divisor": {"$ref": "#/$defs/channelVector"}
+          }
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["runtime"],
+            "properties": {"runtime": {"const": "onnx"}}
+          },
+          "then": {"required": ["input_name", "output_name", "providers"]}
+        }
+      ]
+    },
+    "threshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "version", "max_bpcer"],
+      "properties": {
+        "value": {"$ref": "#/$defs/probability"},
+        "version": {"type": "string", "minLength": 1},
+        "max_bpcer": {
+          "oneOf": [{"$ref": "#/$defs/probability"}, {"type": "null"}]
+        }
+      }
+    },
+    "calibration": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "threshold",
+            "clean_false_reject_rate",
+            "attack_false_accept_rate",
+            "clean_count",
+            "attack_count",
+            "direction"
+          ],
+          "properties": {
+            "threshold": {"$ref": "#/$defs/probability"},
+            "clean_false_reject_rate": {"$ref": "#/$defs/probability"},
+            "attack_false_accept_rate": {"$ref": "#/$defs/probability"},
+            "clean_count": {"type": "integer", "minimum": 1},
+            "attack_count": {"type": "integer", "minimum": 1},
+            "direction": {
+              "enum": ["PASS_IF_GREATER_OR_EQUAL", "PASS_IF_LESS_OR_EQUAL"]
+            }
+          }
+        }
+      ]
+    },
+    "evaluation_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_frames",
+        "min_valid_frames",
+        "quality",
+        "device",
+        "require_device_disjoint"
+      ],
+      "properties": {
+        "max_frames": {"type": "integer", "minimum": 1},
+        "min_valid_frames": {"type": "integer", "minimum": 1},
+        "quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min_blur_variance",
+            "min_brightness",
+            "max_brightness"
+          ],
+          "properties": {
+            "min_blur_variance": {"type": "number", "minimum": 0},
+            "min_brightness": {"type": "number", "minimum": 0},
+            "max_brightness": {"type": "number", "minimum": 0}
+          }
+        },
+        "device": {"type": "string", "minLength": 1},
+        "require_device_disjoint": {"type": "boolean"}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apcer",
+        "bpcer",
+        "acer",
+        "apcer_by_attack_species",
+        "apcer_worst_species",
+        "acer_worst_species",
+        "sample_counts"
+      ],
+      "properties": {
+        "apcer": {"$ref": "#/$defs/rate"},
+        "bpcer": {"$ref": "#/$defs/rate"},
+        "acer": {"$ref": "#/$defs/nullableProbability"},
+        "apcer_by_attack_species": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/speciesRate"}
+        },
+        "apcer_worst_species": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["attack_species", "value"],
+              "properties": {
+                "attack_species": {"type": "string", "minLength": 1},
+                "value": {"$ref": "#/$defs/probability"}
+              }
+            }
+          ]
+        },
+        "acer_worst_species": {"$ref": "#/$defs/nullableProbability"},
+        "sample_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total",
+            "evaluated",
+            "not_evaluated",
+            "error",
+            "bona_fide_evaluated",
+            "attack_evaluated"
+          ],
+          "properties": {
+            "total": {"type": "integer", "minimum": 0},
+            "evaluated": {"type": "integer", "minimum": 0},
+            "not_evaluated": {"type": "integer", "minimum": 0},
+            "error": {"type": "integer", "minimum": 0},
+            "bona_fide_evaluated": {"type": "integer", "minimum": 0},
+            "attack_evaluated": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/sample"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "probability": {"type": "number", "minimum": 0, "maximum": 1},
+    "nullableProbability": {
+      "oneOf": [{"$ref": "#/$defs/probability"}, {"type": "null"}]
+    },
+    "channelVector": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "number"}
+    },
+    "rate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator", "value", "ci95_low", "ci95_high"],
+      "properties": {
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 0},
+        "value": {"$ref": "#/$defs/nullableProbability"},
+        "ci95_low": {"$ref": "#/$defs/nullableProbability"},
+        "ci95_high": {"$ref": "#/$defs/nullableProbability"}
+      }
+    },
+    "speciesRate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "numerator",
+        "denominator",
+        "value",
+        "ci95_low",
+        "ci95_high",
+        "presentations",
+        "not_evaluated",
+        "error"
+      ],
+      "properties": {
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 0},
+        "value": {"$ref": "#/$defs/nullableProbability"},
+        "ci95_low": {"$ref": "#/$defs/nullableProbability"},
+        "ci95_high": {"$ref": "#/$defs/nullableProbability"},
+        "presentations": {"type": "integer", "minimum": 0},
+        "not_evaluated": {"type": "integer", "minimum": 0},
+        "error": {"type": "integer", "minimum": 0}
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_id",
+        "relative_video_path",
+        "video_sha256",
+        "video_bytes",
+        "subject_token",
+        "session_token",
+        "device_token",
+        "label",
+        "attack_species",
+        "split",
+        "outcome",
+        "score",
+        "threshold",
+        "total_frames",
+        "valid_face_frames",
+        "reason_codes",
+        "model_version",
+        "threshold_version",
+        "latency_ms"
+      ],
+      "properties": {
+        "sample_id": {"type": "string", "minLength": 1},
+        "relative_video_path": {
+          "type": "string",
+          "minLength": 1,
+          "not": {"pattern": "^(?:/|[A-Za-z]:[\\\\/])|(?:^|/)\\.\\.(?:/|$)"}
+        },
+        "video_sha256": {
+          "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        },
+        "video_bytes": {
+          "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]
+        },
+        "subject_token": {"type": "string", "minLength": 1},
+        "session_token": {"type": "string", "minLength": 1},
+        "device_token": {"type": "string", "minLength": 1},
+        "label": {"enum": ["bona_fide", "attack"]},
+        "attack_species": {
+          "enum": [
+            "none",
+            "print",
+            "screen_static",
+            "screen_replay",
+            "adversarial_print",
+            "adversarial_screen"
+          ]
+        },
+        "split": {"enum": ["calibration", "test"]},
+        "outcome": {"enum": ["PASS", "FAIL", "NOT_EVALUATED", "ERROR"]},
+        "score": {"$ref": "#/$defs/nullableProbability"},
+        "threshold": {"$ref": "#/$defs/probability"},
+        "total_frames": {"type": "integer", "minimum": 0},
+        "valid_face_frames": {"type": "integer", "minimum": 0},
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "model_version": {"type": "string", "minLength": 1},
+        "threshold_version": {"type": "string", "minLength": 1},
+        "latency_ms": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/authentication-decision.schema.json",
+  "title": "HC160 authentication decision artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "created_at",
+    "session_id",
+    "attempt_id",
+    "security_profile",
+    "state",
+    "result_status",
+    "challenge",
+    "evidence",
+    "decision",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "decision_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "session_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "security_profile": {"enum": ["BASELINE_ONLY", "FULL"]},
+    "state": {"enum": ["VERIFIED", "RETRYABLE", "SECURITY_DENIED", "ERROR"]},
+    "result_status": {"enum": ["POLICY_DECISION", "LIVE_SECURITY_VETO"]},
+    "challenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "start_frame_id"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "start_frame_id": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "frame_count", "valid_face_frames"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "frame_count": {"type": "integer", "minimum": 1},
+        "valid_face_frames": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "policy_version", "reason_codes", "token_id"],
+      "properties": {
+        "action": {"enum": ["VERIFIED", "RETRYABLE", "SECURITY_DENIED", "ERROR"]},
+        "policy_version": {"type": "string", "minLength": 1},
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "token_id": {"type": ["string", "null"], "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"action": {"const": "VERIFIED"}}},
+          "then": {"properties": {"token_id": {"type": "string", "minLength": 1}}},
+          "else": {"properties": {"token_id": {"type": "null"}}}
+        }
+      ]
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/gate"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "nullableNumber": {"type": ["number", "null"]},
+    "nullableString": {"type": ["string", "null"], "minLength": 1},
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate",
+        "status",
+        "score",
+        "threshold",
+        "reason_codes",
+        "model_version",
+        "threshold_version",
+        "latency_ms"
+      ],
+      "properties": {
+        "gate": {"type": "string", "minLength": 1},
+        "status": {"enum": ["PASS", "FAIL", "NOT_EVALUATED", "ERROR"]},
+        "score": {"$ref": "#/$defs/nullableNumber"},
+        "threshold": {"$ref": "#/$defs/nullableNumber"},
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "model_version": {"$ref": "#/$defs/nullableString"},
+        "threshold_version": {"$ref": "#/$defs/nullableString"},
+        "latency_ms": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}

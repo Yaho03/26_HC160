@@ -1,0 +1,9 @@
+# Versions verified in the current Python 3.9 runtime; target runtime is Python 3.11.
+numpy==1.26.4
+opencv-python==4.7.0.72
+Pillow==10.2.0
+torch==2.2.2
+torchvision==0.17.2
+facenet-pytorch==2.6.0
+scikit-learn==1.2.1
+scipy==1.10.1
