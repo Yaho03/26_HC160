@@ -1,51 +1,61 @@
-# Demo and Report Flow
+# DEMO AND REPORT FLOW — 데모·보고 흐름
 
-## 1. Demo principle
+| 항목 | 내용 |
+|---|---|
+| 문서명 | 데모 및 결과 보고 흐름 |
+| 버전 | v1.0 |
+| 상태 | 확정 |
+| 최종 수정일 | 2026-08-23 |
 
-The demo explains a validated experiment run. It does not generate unreviewed security claims during presentation.
+---
 
-## 2. Recommended scenario
+## 1. 데모 원칙
+
+Demo는 검증된 experiment run을 설명한다. 발표 중 검토되지 않은 보안 주장을 새로
+생성하지 않는다.
+
+## 2. 권장 시나리오
 
 ```text
-1. Select a completed run ID.
-2. Show dataset/model/threshold provenance.
-3. Show a clean genuine and clean impostor decision.
-4. Show source, target enrollment, and lossless adversarial probe.
-5. Show reject-to-accept transition and attack budget.
-6. Apply one defense and show the defended decision.
-7. Show clean-performance cost beside attack reduction.
-8. Show detector evidence separately from authentication decision.
-9. Finish with limitations and reproduction command.
+1. 완료된 run ID를 선택한다.
+2. Dataset/model/threshold provenance를 보여준다.
+3. Clean genuine와 clean impostor decision을 보여준다.
+4. Source, target enrollment와 lossless adversarial probe를 보여준다.
+5. Reject-to-accept 전이와 attack budget을 보여준다.
+6. 하나의 defense를 적용하고 defended decision을 보여준다.
+7. Attack 감소 옆에 clean-performance cost를 표시한다.
+8. Detector evidence를 authentication decision과 분리해 표시한다.
+9. 한계와 reproduction command로 마무리한다.
 ```
 
-## 3. Required report sections
+## 3. Report 필수 절
 
-- scope and threat model;
-- dataset, split, model, preprocessing, and threshold versions;
-- clean baseline;
-- attacks and budgets;
-- defenses and clean trade-off;
-- adaptive and transfer evaluation where applicable;
-- runtime and reproducibility;
-- sample counts, errors, and confidence intervals;
-- privacy, ethics, and limitations;
-- run IDs and artifact hashes.
+- 범위와 threat model
+- Dataset, split, model, preprocessing과 threshold version
+- Clean baseline
+- Attack과 budget
+- Defense와 clean trade-off
+- 해당하는 경우 adaptive 및 transfer 평가
+- Runtime과 재현성
+- Sample 수, error와 confidence interval
+- 개인정보, 윤리와 한계
+- Run ID와 artifact hash
 
-## 4. Failure scenarios
+## 4. 실패 시나리오
 
-The demo must include at least one expected failure:
+Demo는 다음 중 하나 이상의 예상 실패를 포함한다.
 
-- missing artifact or schema mismatch;
-- low-quality retryable capture;
-- model error that fails closed;
-- attack that does not cross threshold;
-- defense that lowers ASR but damages clean TAR;
-- token replay or context mismatch in the separate reference prototype.
+- Artifact 누락 또는 schema mismatch
+- Low-quality retryable capture
+- Fail closed하는 model error
+- Threshold를 넘지 못한 attack
+- ASR을 낮추지만 clean TAR을 훼손한 defense
+- 별도 reference prototype의 token replay 또는 context mismatch
 
-## 5. Prohibited presentation
+## 5. 금지하는 표현과 시연
 
-- “100% secure” or equivalent claims;
-- presenting training-set adversarial performance as held-out robustness;
-- using temporal still-image results as camera deployment evidence;
-- claiming certified robustness without a certificate;
-- displaying identifiable face artifacts without authorization.
+- “100% 안전” 또는 같은 의미의 주장
+- Training-set adversarial 성능을 held-out robustness로 제시
+- Temporal still-image 결과를 camera 배포 증거로 사용
+- Certificate 없이 certified robustness 주장
+- 승인 없이 식별 가능한 face artifact 표시
