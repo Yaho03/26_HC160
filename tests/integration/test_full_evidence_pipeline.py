@@ -80,7 +80,7 @@ class FullEvidencePipelineTest(unittest.TestCase):
         observation = pipeline.evaluate(
             frames,
             challenge_kind="HEAD_RIGHT",
-            challenge_start_frame_id=-1,
+            challenge_start_frame_id=0,
         )
         decision = PolicyEngine().evaluate(
             observation.gate_results, SecurityProfile.FULL

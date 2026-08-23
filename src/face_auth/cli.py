@@ -62,6 +62,11 @@ def _source(args):
 class CaptureBatch:
     frames: tuple[FramePacket, ...]
     cancelled: bool = False
+    challenge_start_frame_id: int | None = None
+
+
+class ChallengeBindingError(RuntimeError):
+    """Raised when FULL evidence is not bound to a displayed challenge."""
 
 
 def _collect(
@@ -70,31 +75,54 @@ def _collect(
     *,
     preview: OpenCVPreview | None = None,
     purpose: str = "CAPTURE",
+    instruction: str | None = None,
 ) -> CaptureBatch:
     frames = []
+    challenge_start_frame_id = None
     try:
         while len(frames) < frame_count:
             frame = source.read()
             if frame is None:
                 break
             frames.append(frame)
-            if preview is not None and not preview.show(
-                frame,
-                captured_frames=len(frames),
-                target_frames=frame_count,
-                purpose=purpose,
-            ):
-                return CaptureBatch(tuple(frames), cancelled=True)
+            if preview is not None:
+                if not preview.show(
+                    frame,
+                    captured_frames=len(frames),
+                    target_frames=frame_count,
+                    purpose=purpose,
+                    instruction=instruction,
+                ):
+                    return CaptureBatch(
+                        tuple(frames),
+                        cancelled=True,
+                        challenge_start_frame_id=challenge_start_frame_id,
+                    )
+                if instruction is not None and challenge_start_frame_id is None:
+                    challenge_start_frame_id = frame.frame_id
     finally:
         source.close()
         if preview is not None:
             preview.close()
-    return CaptureBatch(tuple(frames))
+    return CaptureBatch(
+        tuple(frames), challenge_start_frame_id=challenge_start_frame_id
+    )
 
 
-def _capture(args, purpose: str) -> CaptureBatch:
+def _capture(
+    args,
+    purpose: str,
+    *,
+    instruction: str | None = None,
+) -> CaptureBatch:
     preview = OpenCVPreview() if _preview_enabled(args) else None
-    return _collect(_source(args), args.frames, preview=preview, purpose=purpose)
+    return _collect(
+        _source(args),
+        args.frames,
+        preview=preview,
+        purpose=purpose,
+        instruction=instruction,
+    )
 
 
 def _preview_enabled(args) -> bool:
@@ -143,6 +171,70 @@ def _capture_cancelled(*, captured_frames: int, session_id: str | None = None) -
         payload["state"] = SessionState.RETRYABLE.value
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 130
+
+
+def _challenge_instruction(challenge_kind: str) -> str:
+    instructions = {
+        "HEAD_LEFT": "TURN HEAD LEFT",
+        "HEAD_RIGHT": "TURN HEAD RIGHT",
+        "BLINK": "BLINK ONCE",
+    }
+    try:
+        return instructions[challenge_kind]
+    except KeyError as error:
+        raise ChallengeBindingError(
+            f"Unsupported challenge kind: {challenge_kind}"
+        ) from error
+
+
+def _resolve_challenge_start_frame_id(args, capture: CaptureBatch) -> int:
+    if (
+        capture.challenge_start_frame_id is not None
+        and args.challenge_start_frame_id is not None
+    ):
+        raise ChallengeBindingError(
+            "Do not provide --challenge-start-frame-id when the preview records "
+            "the displayed challenge boundary."
+        )
+    marker = capture.challenge_start_frame_id
+    if marker is None:
+        marker = args.challenge_start_frame_id
+    if marker is None:
+        raise ChallengeBindingError(
+            "FULL headless or recorded-video capture requires "
+            "--challenge-start-frame-id from the external challenge presenter."
+        )
+
+    frame_ids = {frame.frame_id for frame in capture.frames}
+    if marker not in frame_ids:
+        raise ChallengeBindingError(
+            "challenge_start_frame_id must identify a captured frame."
+        )
+    post_challenge_frames = sum(
+        frame.frame_id > marker for frame in capture.frames
+    )
+    if post_challenge_frames < args.min_valid_frames:
+        raise ChallengeBindingError(
+            "Not enough post-challenge frames for the configured minimum."
+        )
+    return marker
+
+
+def _challenge_binding_failure(error: ChallengeBindingError, session_id: str) -> int:
+    print(
+        json.dumps(
+            {
+                "status": "CHALLENGE_BINDING_ERROR",
+                "reason_code": "CHALLENGE_BOUNDARY_INVALID",
+                "message": str(error),
+                "session_id": session_id,
+                "state": SessionState.ERROR.value,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 3
 
 
 def enroll(args) -> int:
@@ -249,8 +341,17 @@ def authenticate(args) -> int:
     )
     challenge = sessions.issue_challenge(session.session_id)
     sessions.move(session.session_id, SessionState.CAPTURING)
+    instruction = (
+        _challenge_instruction(challenge.kind)
+        if profile is SecurityProfile.FULL
+        else None
+    )
     try:
-        capture = _capture(args, "AUTHENTICATION")
+        capture = _capture(
+            args,
+            "AUTHENTICATION",
+            instruction=instruction,
+        )
     except (CaptureSourceError, PreviewUnavailableError) as error:
         sessions.move(session.session_id, SessionState.ERROR)
         return _capture_failure(error, session_id=session.session_id)
@@ -275,7 +376,20 @@ def authenticate(args) -> int:
             )
         )
         return 3
-    manifest = build_capture_manifest(session, frames)
+    challenge_start_frame_id = None
+    if profile is SecurityProfile.FULL:
+        try:
+            challenge_start_frame_id = _resolve_challenge_start_frame_id(
+                args, capture
+            )
+        except ChallengeBindingError as error:
+            sessions.move(session.session_id, SessionState.ERROR)
+            return _challenge_binding_failure(error, session.session_id)
+    manifest = build_capture_manifest(
+        session,
+        frames,
+        challenge_start_frame_id=challenge_start_frame_id,
+    )
     sessions.move(session.session_id, SessionState.EVIDENCE_RECEIVED)
     sessions.move(session.session_id, SessionState.EVALUATING)
     if profile is SecurityProfile.FULL:
@@ -283,7 +397,7 @@ def authenticate(args) -> int:
         full_observation = full_pipeline.evaluate(
             frames,
             challenge_kind=challenge.kind,
-            challenge_start_frame_id=-1,
+            challenge_start_frame_id=challenge_start_frame_id,
         )
         observation = full_observation.baseline
         gate_results = list(full_observation.gate_results)
@@ -297,6 +411,7 @@ def authenticate(args) -> int:
         "security_profile": session.security_profile.value,
         "state": session.state.value,
         "challenge": challenge.kind,
+        "challenge_start_frame_id": manifest.challenge_start_frame_id,
         "decision": outcome.decision.action.value,
         "reason_codes": list(outcome.decision.reason_codes),
         "total_frames": observation.total_frames,
@@ -410,6 +525,14 @@ def build_parser() -> argparse.ArgumentParser:
     full = auth_parser.add_argument_group("FULL profile")
     full.add_argument("--pad-model")
     full.add_argument("--pad-model-version", default="unversioned-pad-model")
+    full.add_argument(
+        "--challenge-start-frame-id",
+        type=int,
+        help=(
+            "captured frame where an external challenge UI first presented the "
+            "FULL challenge; required for recorded-video or headless capture"
+        ),
+    )
     full.add_argument(
         "--pad-runtime", choices=["torchscript", "onnx"], default="torchscript"
     )

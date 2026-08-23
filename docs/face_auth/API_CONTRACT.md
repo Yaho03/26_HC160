@@ -23,6 +23,15 @@ Input:
 
 Output contains a server-generated `session_id`, nonce, challenge, policy version, and expiry. Challenge issuance must happen before accepted evidence capture.
 
+For a previewed FULL camera capture, the client displays the randomized action and
+records the first displayed frame as `challenge_start_frame_id`. Only evidence with a
+larger frame ID is eligible for active-liveness evaluation. A recorded-video or
+headless FULL client must provide the equivalent marker from its external challenge
+presenter; a missing, out-of-range, or too-late marker fails closed. The challenge
+nonce is not rendered in the preview. The marker is included with the nonce and
+ordered frame bytes in the capture-manifest evidence digest, so changing it invalidates
+manifest verification.
+
 ## Gate Contract
 
 Every gate returns:

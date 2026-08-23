@@ -53,7 +53,7 @@ These counts identify the snapshot only. Use the current test command rather tha
 | Camera-motion gate | Implemented | background motion estimator | Target-camera calibration; currently retry-oriented evidence only. |
 | Passive PAD | Capture/evaluation harness implemented; external artifact blocked | TorchScript/ONNX adapters, fail-closed model registry, physical capture CLI/protocol, manifest validator, source-bound evaluator, APCER/BPCER and attack-species metrics exist | Approved model, license/checksum, authorized capture sessions, and held-out physical evaluation. |
 | PAD report provenance | Implemented | Run ID, Git state, manifest/model/source-video SHA-256, byte counts, immutable-by-default output, and `pad-evaluation-report.schema.json` | Register each completed report in the repository-wide run/artifact manifest workflow. |
-| Active liveness | Implemented | randomized challenge and head-turn/blink logic | Physical replay study, accessibility alternatives, threshold calibration. |
+| Active liveness | Implemented | randomized challenge, live instruction overlay, displayed-frame boundary binding, and head-turn/blink logic | Physical replay study, accessibility alternatives, threshold calibration. |
 | Identity continuity | Implemented | template-anchored temporal gate | Person-switch and occlusion evaluation on held-out sessions. |
 | Adversarial inspection | Implemented as optional veto | transform-consistency and feature-squeeze modules | Clean calibration, adaptive attack evaluation, latency cost. |
 | Scenario generation | Implemented | manifest-driven insertion/replay builder | Broader scenario catalog and real physical attack capture. |

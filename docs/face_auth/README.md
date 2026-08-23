@@ -81,6 +81,11 @@ Webcam commands show a preview by default; recorded-video commands remain headle
 Press `q` or `Esc` to cancel a preview capture. `--no-preview` is available for an
 intentional headless webcam run.
 
+The FULL preview also shows the randomized liveness action. Its first displayed frame
+is used as the challenge boundary, and only later frames can satisfy active liveness.
+An external UI driving recorded or headless FULL capture must pass its boundary with
+`--challenge-start-frame-id`; absent or invalid boundaries fail closed.
+
 ## Documentation map
 
 - `API_CONTRACT.md` — state, gate, evidence, and token contract.

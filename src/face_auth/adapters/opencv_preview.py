@@ -26,12 +26,14 @@ class OpenCVPreview:
         captured_frames: int,
         target_frames: int,
         purpose: str,
+        instruction: str | None = None,
     ) -> bool:
         rendered = self._render(
             packet.image_bgr,
             captured_frames=captured_frames,
             target_frames=target_frames,
             purpose=purpose,
+            instruction=instruction,
         )
         try:
             self._opened = True
@@ -62,10 +64,15 @@ class OpenCVPreview:
         captured_frames: int,
         target_frames: int,
         purpose: str,
+        instruction: str | None = None,
     ) -> np.ndarray:
         rendered = frame_bgr.copy()
         height, width = rendered.shape[:2]
-        banner_height = min(96, max(64, height // 5))
+        banner_height = (
+            min(128, max(96, height // 4))
+            if instruction
+            else min(96, max(64, height // 5))
+        )
 
         overlay = rendered.copy()
         cv2.rectangle(overlay, (0, 0), (width, banner_height), (18, 24, 32), -1)
@@ -110,10 +117,21 @@ class OpenCVPreview:
             2,
             cv2.LINE_AA,
         )
+        if instruction:
+            cv2.putText(
+                rendered,
+                instruction,
+                (18, 52),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.68,
+                (96, 214, 148),
+                2,
+                cv2.LINE_AA,
+            )
         cv2.putText(
             rendered,
             f"CAPTURING {captured_frames}/{target_frames}",
-            (18, 54),
+            (18, banner_height - 24 if instruction else 54),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.48,
             (205, 215, 225),

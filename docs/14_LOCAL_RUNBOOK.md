@@ -166,6 +166,14 @@ The FULL profile requires all of the following before invocation:
 - enough post-challenge frames to evaluate active liveness;
 - target-device validation evidence.
 
+For camera capture with the default preview, the randomized FULL challenge is shown
+in the window and its first displayed frame is bound automatically. Recorded-video or
+`--no-preview` FULL runs require `--challenge-start-frame-id N` from the external
+challenge presenter. The marker must identify a captured frame and leave at least
+`--min-valid-frames` later frames; otherwise the command returns
+`CHALLENGE_BINDING_ERROR`. Do not supply an external marker when the preview is
+recording the boundary automatically.
+
 If `--pad-model` is absent, FULL refuses to start. This is the intended fail-closed behavior. See `face_auth/README.md` for the command and gate map.
 
 ## 8. Passive PAD evaluation workflow

@@ -29,7 +29,7 @@ Issues remain as reviewable specifications until approved for creation in GitHub
 | FR-108 | Implemented | Webcam preview, capture progress, user cancellation, headless override, and structured camera/preview failures are tested. |
 | EXP-002 | Implemented for synthetic tests | Genuine/impostor/multi-face/quality/error cases are automated; target-device evidence remains. |
 | FR-201 | Partial | TorchScript/ONNX PAD adapters, source-bound report schema, immutable output, manifest validator, video evaluator, APCER/BPCER and species metrics exist; validated checkpoint and held-out physical data are missing. |
-| FR-202 | Partial | Random challenge logic exists; physical replay/accessibility evaluation is pending. |
+| FR-202 | Partial | Random challenge logic, live instruction display, and post-display frame binding exist; physical replay/accessibility evaluation is pending. |
 | FR-203 | Partial | Tracking and template continuity exist; held-out switch/occlusion study is pending. |
 | EXP-201 | Pending | Physical print/screen/replay dataset and report are absent. |
 | EXP-202 | Partial | Synthetic insertion scenario passes; physical/person-switch matrix and delay report are absent. |
