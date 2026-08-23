@@ -4,7 +4,9 @@
 
 `pad-evaluation-report.schema.json`은 PAD 실행 ID, Git 상태, manifest/model SHA-256, 선택된 영상별 SHA-256·바이트 크기, 임계값, 평가 결과와 APCER/BPCER/ACER 구조를 고정한다.
 
-`authentication-decision.schema.json`은 evidence digest에 결합된 최종 인증 상태, 정책 버전, 게이트 결과, 챌린지 경계와 토큰 발급 여부를 고정한다. 사용자 ID, challenge nonce, 원본 프레임과 얼굴 템플릿은 포함하지 않는다. 생성된 `decision_id`는 run manifest의 `output_artifact_ids`와 `kind: decision` artifact reference로 등록할 수 있다.
+`authentication-decision.schema.json`은 evidence digest에 결합된 최종 인증 상태, 정책 버전, 게이트 결과, 챌린지 경계와 토큰 발급 여부를 고정한다. 사용자 ID, challenge nonce, 원본 프레임과 얼굴 템플릿은 포함하지 않는다.
+
+`run-registration-context.schema.json`은 결과 생성 전에 사람이 명시해야 하는 run/experiment/requirement ID, 환경 해시, seed, 입력·출력 artifact ID와 재현 명령을 고정한다. 인증 및 PAD CLI는 이 컨텍스트가 제공될 때 실제 Git 상태, 실행 시각, 설정 해시, 결과 파일 해시와 크기를 결합해 artifact reference와 완료된 run manifest를 자동 생성한다.
 
 `verification-score-export.schema.json`은 FaceNet 점수 JSONL의 해시와 model/preprocessing/dataset/pair manifest/Git provenance를 결합한다. Threshold와 clean report는 이 export metadata 해시를 다시 참조한다.
 

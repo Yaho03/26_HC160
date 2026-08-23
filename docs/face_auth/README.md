@@ -54,8 +54,10 @@ session 생성
 | `evaluation/pad_cli.py` | Immutable-by-default labeled-video PAD report command |
 | `evaluation/pad_capture.py` | 승인 physical PAD capture session과 append-only receipt |
 | `evaluation/pad_capture_cli.py` | Capture 준비·검증·manifest materialization command |
+| `../experiments/artifact_registration.py` | 명시적 context 기반 output 등록과 immutable run/reference sidecar |
 | `../../schemas/pad-evaluation-report.schema.json` | PAD report와 provenance 계약 |
 | `../../schemas/authentication-decision.schema.json` | Machine-readable terminal authentication decision 계약 |
+| `../../schemas/run-registration-context.schema.json` | Output 자동 등록 전에 필요한 machine-readable metadata 계약 |
 | `cli.py` | 별도 `enroll`, `authenticate` command |
 
 Attack-video 생성은 `src/attack_scenarios/`에서 별도로 관리한다.
@@ -103,8 +105,11 @@ headless FULL capture를 구동하는 외부 UI는 `--challenge-start-frame-id`�
 `--decision-output outputs/face-auth/decision.json`을 전달하면 identity label이나 biometric
 input을 저장하지 않고 terminal policy 결과 또는 live replay veto를 보존한다. Output은
 기본적으로 immutable이며 `--overwrite-decision-output`은 폐기 가능한 local rerun에서만
-사용한다. 결과를 experiment evidence로 사용할 때는 생성한 run manifest에 `decision_id`를
-등록한다.
+사용한다. Experiment evidence로 등록할 때는
+`--registration-context configs/run-registration.json`도 전달한다. 명령은 decision의 실제
+byte를 명시적 run metadata에 결합한 `decision.json.artifact-reference.json`과
+`decision.json.run-manifest.json`을 생성한다. 등록된 output은 overwrite를 허용하지 않으며
+명시적인 `--device`가 필요하다.
 
 ## 6. 문서 지도
 

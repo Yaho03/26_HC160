@@ -2,9 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.common.reproducibility import git_state, stable_json_sha256
+from src.experiments.artifact_registration import (
+    ArtifactRegistrationError,
+    load_registration_context,
+    preflight_registration,
+    register_completed_output,
+)
+from src.experiments.run_manifest import RunManifest
 from src.face_auth.adapters.capture_base import FrameSource
 from src.face_auth.adapters.in_memory_store import InMemoryStore
 from src.face_auth.adapters.opencv_capture import (
@@ -335,26 +344,125 @@ def _capture_configuration_failure(error: ValueError, session_id: str) -> int:
 
 
 def _prepare_decision_output(args) -> None:
+    args._registration_context = None
     if args.decision_output is None:
+        if args.registration_context is not None:
+            raise DecisionArtifactError(
+                "--registration-context requires --decision-output"
+            )
         return
     protected_inputs = [args.template]
     if args.video is not None:
         protected_inputs.append(args.video)
+    if args.registration_context is not None:
+        protected_inputs.append(args.registration_context)
     validate_decision_output(
         args.decision_output,
         overwrite=args.overwrite_decision_output,
         protected_inputs=protected_inputs,
     )
+    if args.registration_context is None:
+        return
+    if args.overwrite_decision_output:
+        raise DecisionArtifactError(
+            "registered decision outputs are immutable; remove "
+            "--overwrite-decision-output"
+        )
+    if args.device is None:
+        raise DecisionArtifactError(
+            "registered decision outputs require an explicit --device"
+        )
+    try:
+        context = load_registration_context(args.registration_context)
+        preflight_registration(args.decision_output)
+        code_state = git_state(args.registration_repo_dir)
+    except (ArtifactRegistrationError, OSError, subprocess.CalledProcessError) as error:
+        raise DecisionArtifactError(
+            f"unable to prepare decision registration: {error}"
+        ) from error
+    args._registration_context = context
+    args._registration_code_state = code_state
+    args._registration_started_at = RunManifest.utc_now()
 
 
 def _persist_decision_artifact(args, payload: dict) -> None:
     if args.decision_output is None:
         return
+    context = args._registration_context
+    if context is not None:
+        try:
+            current_code_state = git_state(args.registration_repo_dir)
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise DecisionArtifactError(
+                f"unable to recheck decision producer state: {error}"
+            ) from error
+        if current_code_state != args._registration_code_state:
+            raise DecisionArtifactError(
+                "repository state changed during authentication"
+            )
     write_decision_artifact(
         args.decision_output,
         payload,
         overwrite=args.overwrite_decision_output,
     )
+    if context is None:
+        return
+    try:
+        register_completed_output(
+            args.decision_output,
+            context=context,
+            kind="decision",
+            created_at=payload["created_at"],
+            config_sha256=_authentication_config_sha256(args),
+            git_commit=args._registration_code_state["git_commit"],
+            dirty_worktree=args._registration_code_state["dirty_worktree"],
+            device={"type": args.device},
+            started_at=args._registration_started_at,
+            ended_at=RunManifest.utc_now(),
+        )
+    except (ArtifactRegistrationError, OSError) as error:
+        Path(args.decision_output).unlink(missing_ok=True)
+        raise DecisionArtifactError(
+            f"unable to register decision artifact: {error}"
+        ) from error
+
+
+def _authentication_config_sha256(args) -> str:
+    names = (
+        "profile",
+        "threshold",
+        "threshold_version",
+        "policy_version",
+        "purpose",
+        "frames",
+        "min_valid_frames",
+        "device",
+        "min_blur_variance",
+        "min_brightness",
+        "max_brightness",
+        "pad_model_version",
+        "pad_runtime",
+        "pad_provider",
+        "pad_live_threshold",
+        "pad_threshold_version",
+        "pad_input_size",
+        "pad_live_class_index",
+        "pad_output_kind",
+        "continuity_threshold",
+        "continuity_window",
+        "continuity_failures",
+        "continuity_threshold_version",
+        "camera_motion_threshold",
+        "camera_motion_threshold_version",
+        "content_replay_max_run",
+        "content_replay_max_difference",
+        "content_replay_threshold_version",
+        "adversarial_threshold",
+        "adversarial_threshold_version",
+    )
+    configuration = {name: getattr(args, name) for name in names}
+    configuration["source_kind"] = "video" if args.video is not None else "camera"
+    return stable_json_sha256(configuration)
 
 
 def _decision_artifact_failure(
@@ -396,6 +504,7 @@ def _live_security_veto(
         valid_face_frames=None,
         gate_results=(gate_result,),
         token_id=None,
+        decision_id=_registered_decision_id(args),
     )
     try:
         _persist_decision_artifact(args, artifact)
@@ -659,6 +768,7 @@ def authenticate(args) -> int:
         valid_face_frames=observation.valid_face_frames,
         gate_results=outcome.decision.gate_results,
         token_id=outcome.token.token_id if outcome.token else None,
+        decision_id=_registered_decision_id(args),
     )
     try:
         _persist_decision_artifact(args, artifact)
@@ -698,6 +808,11 @@ def authenticate(args) -> int:
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if outcome.token else 2
+
+
+def _registered_decision_id(args) -> str | None:
+    context = getattr(args, "_registration_context", None)
+    return context.artifact_id if context is not None else None
 
 
 def _full_pipeline(args, baseline, embedder, template_embedding):
@@ -785,6 +900,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--overwrite-decision-output",
         action="store_true",
         help="replace an existing decision artifact",
+    )
+    auth_parser.add_argument(
+        "--registration-context",
+        help=(
+            "write immutable artifact-reference and run-manifest sidecars from "
+            "an explicit registration context"
+        ),
+    )
+    auth_parser.add_argument(
+        "--registration-repo-dir",
+        default=".",
+        help="repository used to record the decision producer commit",
     )
     auth_parser.add_argument(
         "--profile",

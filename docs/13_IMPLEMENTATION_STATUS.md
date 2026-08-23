@@ -62,7 +62,8 @@ threshold, sample 수, confidence interval과 limitation을 기록해야 보고 
 | Repeated-content detection | Smoke 검증 | Codec-tolerant batch gate, challenge 이후 streaming veto와 즉시 `SECURITY_DENIED` 전환 | Codec/camera별 genuine/attack false-positive 연구 |
 | Camera-motion gate | 구현됨 | Background motion estimator | Target-camera calibration. 현재 retry용 evidence |
 | Passive PAD | Capture/evaluation harness 구현·외부 artifact 차단 | TorchScript/ONNX adapter, fail-closed registry, capture CLI/protocol, manifest validator, evaluator와 APCER/BPCER | 승인 model·license/checksum, 승인 capture session, held-out physical 평가 |
-| PAD report provenance | 구현됨 | Run ID, Git state, manifest/model/source-video hash·byte, immutable output와 schema | 완료 report를 저장소 전체 run/artifact manifest에 등록 |
+| PAD report provenance | 구현됨 | Run ID, Git state, manifest/model/source-video hash·byte, immutable output와 schema | 승인 model과 held-out physical data로 최종 report 생성 |
+| Run/artifact 자동 등록 | 구현됨 | 명시적 registration context, decision/report artifact reference, completed run manifest, 실제 output hash, immutable sidecar와 rollback test | Formal run에서 승인 ID와 environment hash 사용. 여러 output 집계는 해당 experiment가 요구할 때 별도 구현 |
 | Active liveness | 구현됨 | Randomized challenge, 실시간 동작 지시, 표시 프레임 경계 결합과 head-turn/blink logic | Physical replay 연구, 접근성 대안, threshold calibration |
 | Identity continuity | 구현됨 | Template-anchored temporal gate | Held-out person-switch·occlusion 평가 |
 | Adversarial inspection | Optional veto로 구현 | Transform-consistency와 feature-squeeze module | Clean calibration, adaptive attack, latency 평가 |
@@ -120,9 +121,10 @@ test row로 tuning하면 안 된다.
 | 우선순위 | Gap | 필수 후속 작업 |
 |---|---|---|
 | P0 before FULL claim | 승인 PAD checkpoint 또는 held-out physical dataset이 없음 | FULL profile을 보고 가능 상태로 만들기 전에 model을 확보하고 license·hash·calibration·evaluation 완료 |
-| P1 | PAD report에는 schema와 run/source provenance가 있지만 face-auth decision과 전체 run/artifact 등록이 미완료 | Decision schema 정의 및 모든 report를 run manifest와 artifact reference에 등록 |
 | P1 | Template, session과 token이 local NPZ/in-memory adapter 사용 | Multi-process 또는 remote service 전에 encrypted transactional persistence 추가 |
 
 PAD report는 더 이상 local manifest/model path를 직렬화하지 않는다. Formal run은 기본적으로
 dirty worktree와 기존 output path를 거부한다. `--allow-dirty`와 `--overwrite`는
-일회성 local debugging에서만 사용하는 비기본 escape hatch다.
+일회성 local debugging에서만 사용하는 비기본 escape hatch다. 명시적 registration
+context가 있으면 PAD report와 authentication decision이 artifact reference와 completed
+run manifest sidecar를 자동 생성하며, 등록된 output은 overwrite를 허용하지 않는다.

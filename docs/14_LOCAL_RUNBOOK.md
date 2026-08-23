@@ -170,7 +170,8 @@ python -m src.face_auth.cli authenticate \
   --user-id user-1 \
   --context-hash demo-context-a \
   --profile BASELINE_ONLY \
-  --decision-output outputs/face-auth/decision.json
+  --decision-output outputs/face-auth/decision.json \
+  --registration-context configs/run-registration.json
 ```
 
 `0.60`은 release threshold가 아니다. 승인 calibration data에서 생성한 고정 artifact
@@ -184,6 +185,10 @@ gate version, terminal state, frame 수, attempt ID와 evidence SHA-256은 저�
 challenge nonce, frame pixel, embedding 또는 template은 저장하지 않는다. 기존 output은
 기본적으로 덮어쓰지 않는다. 보고 가능한 run에서는 `kind: decision` artifact reference를
 생성하고 `decision_id`를 run manifest의 `output_artifact_ids`에 추가한다.
+`configs/run-registration.example.json`을 복사한 뒤 placeholder를 승인된 실제 run
+metadata로 바꾸고 `--registration-context`로 전달한다. 성공하면
+`<output>.artifact-reference.json`과 `<output>.run-manifest.json`을 함께 생성한다.
+각 실행은 고유한 run/output artifact ID를 사용해야 한다.
 
 Camera input은 기본적으로 local OpenCV preview를 연다. Guide 안에 한 얼굴을 유지하고
 `q` 또는 `Esc`로 취소한다. 의도적인 headless 실행에서만 `--no-preview`를 사용한다.
@@ -240,6 +245,7 @@ python -m src.face_auth.evaluation.pad_cli \
   --run-id run-pad-calibration-v1 \
   --split calibration \
   --max-bpcer 0.05 \
+  --registration-context configs/run-registration.json \
   --output outputs/pad/pad-calibration-v1.json
 ```
 
@@ -257,6 +263,7 @@ python -m src.face_auth.evaluation.pad_cli \
   --threshold-version pad-validation-v1 \
   --run-id run-pad-test-v1 \
   --split test \
+  --registration-context configs/run-registration.json \
   --output outputs/pad/pad-test-v1.json
 ```
 
@@ -270,8 +277,10 @@ BPCER, ACER, worst/per-species APCER, presentation/exclusion count와 Wilson 95%
 기록한다. Git commit, manifest/model hash 및 선택한 source video의 hash와 byte 수도
 결합한다. 평가 후 input을 다시 확인하므로 실행 중 변경되면 report 생성을 중단한다.
 
-Formal run은 clean worktree를 요구하고 기존 output path를 거부한다. `--allow-dirty`와
-`--overwrite`는 명시적인 local debugging에서만 사용한다. Multi-face, quality 부족,
+Formal run은 clean worktree를 요구하고 기존 output path를 거부한다. Registration context의
+`run_id`는 PAD `--run-id`와 같아야 하며, 성공한 report에는 immutable artifact-reference와
+run-manifest sidecar가 생성된다. `--allow-dirty`와 `--overwrite`는 명시적인 local
+debugging에서만 사용하고 등록된 run에서는 overwrite를 거부한다. Multi-face, quality 부족,
 load와 model failure는 PAD success에 포함하지 않고 별도로 보고한다.
 
 ## 9. Scenario·gate threshold workflow

@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-pad-eval-001",
+  "experiment_id": "EXP-PAD-001",
+  "requirement_ids": ["FR-201", "NFR-201"],
+  "environment_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "seed": 42,
+  "input_artifact_ids": ["pad-manifest-v1", "pad-model-v1"],
+  "reproduce_command": "python -m src.face_auth.evaluation.pad_cli ...",
+  "artifact_id": "pad-report-001",
+  "relative_uri": "reports/pad-report-001.json",
+  "notes": "Replace the placeholder environment hash and command before use."
+}

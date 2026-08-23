@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 
 from src.common.reproducibility import sha256_file
+from src.experiments.artifact_registration import registration_outputs
 from src.face_auth.application.decision_artifact import (
     DecisionArtifactError,
     build_artifact_reference,
@@ -169,6 +170,26 @@ class DecisionArtifactTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "decision.json"
+            registration = Path(directory) / "registration.json"
+            registration.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "run_id": "run-auth-001",
+                        "experiment_id": "EXP-AUTH-001",
+                        "requirement_ids": ["FR-201"],
+                        "environment_sha256": "a" * 64,
+                        "seed": 42,
+                        "input_artifact_ids": ["template-001", "probe-001"],
+                        "reproduce_command": (
+                            "python -m src.face_auth.cli authenticate ..."
+                        ),
+                        "artifact_id": "decision-001",
+                        "relative_uri": "decisions/decision-001.json",
+                    }
+                ),
+                encoding="utf-8",
+            )
             args = build_parser().parse_args(
                 [
                     "authenticate",
@@ -182,8 +203,12 @@ class DecisionArtifactTest(unittest.TestCase):
                     "identity-v1",
                     "--user-id",
                     "user-1",
+                    "--device",
+                    "cpu",
                     "--decision-output",
                     str(output),
+                    "--registration-context",
+                    str(registration),
                 ]
             )
             pipeline = Mock()
@@ -210,18 +235,79 @@ class DecisionArtifactTest(unittest.TestCase):
                     "src.face_auth.cli._capture",
                     return_value=CaptureBatch(frames),
                 ),
+                patch(
+                    "src.face_auth.cli.git_state",
+                    return_value={"git_commit": "b" * 40, "dirty_worktree": False},
+                ),
                 redirect_stdout(io.StringIO()) as stdout,
             ):
                 exit_code = authenticate(args)
 
             artifact = json.loads(output.read_text(encoding="utf-8"))
+            outputs = registration_outputs(output)
+            reference = json.loads(outputs.artifact_reference.read_text())
+            run_manifest = json.loads(outputs.run_manifest.read_text())
             console = json.loads(stdout.getvalue())
             self.assertEqual(exit_code, 0)
             self.assertEqual(artifact["result_status"], "POLICY_DECISION")
             self.assertEqual(artifact["decision"]["action"], "VERIFIED")
+            self.assertEqual(artifact["decision_id"], "decision-001")
             self.assertEqual(artifact["decision"]["token_id"], console["token_id"])
             self.assertEqual(artifact["evidence"]["valid_face_frames"], 5)
             self.assertNotIn("user-1", output.read_text(encoding="utf-8"))
+            self.assertEqual(reference["sha256"], sha256_file(output))
+            self.assertEqual(reference["artifact_id"], "decision-001")
+            self.assertEqual(run_manifest["output_artifact_ids"], ["decision-001"])
+            self.assertEqual(run_manifest["git_commit"], "b" * 40)
+
+    def test_registered_decision_requires_explicit_device(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "decision.json"
+            context = root / "registration.json"
+            context.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "run_id": "run-auth-001",
+                        "experiment_id": "EXP-AUTH-001",
+                        "requirement_ids": ["FR-201"],
+                        "environment_sha256": "a" * 64,
+                        "seed": 42,
+                        "input_artifact_ids": ["template-001", "probe-001"],
+                        "reproduce_command": "python -m src.face_auth.cli ...",
+                        "artifact_id": "decision-001",
+                        "relative_uri": "decisions/decision-001.json",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = build_parser().parse_args(
+                [
+                    "authenticate",
+                    "--video",
+                    "probe.mp4",
+                    "--template",
+                    "template.npz",
+                    "--threshold",
+                    "0.7",
+                    "--threshold-version",
+                    "identity-v1",
+                    "--user-id",
+                    "user-1",
+                    "--decision-output",
+                    str(output),
+                    "--registration-context",
+                    str(context),
+                ]
+            )
+            with redirect_stdout(io.StringIO()) as stdout:
+                exit_code = authenticate(args)
+            failure = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 3)
+            self.assertEqual(failure["status"], "DECISION_ARTIFACT_ERROR")
+            self.assertIn("explicit --device", failure["message"])
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":
