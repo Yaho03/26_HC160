@@ -6,6 +6,7 @@ outputs/analysis/
 outputs/verification/
 outputs/verification_facenet/
 outputs/verification_attacks/
+outputs/verification_attacks_facenet/
 outputs/defenses/jpeg/
 outputs/defenses/smoothing/
 outputs/defenses/bitdepth/
