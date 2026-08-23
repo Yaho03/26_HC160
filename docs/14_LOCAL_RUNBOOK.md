@@ -169,7 +169,9 @@ python -m src.face_auth.cli authenticate \
   --user-id user-1 \
   --context-hash demo-context-a \
   --profile BASELINE_ONLY \
-  --decision-output outputs/face-auth/decision.json
+  --device cpu \
+  --decision-output outputs/face-auth/decision.json \
+  --registration-context configs/run-registration.json
 ```
 
 `0.60` is not a release threshold. Replace it with the frozen artifact value produced from approved calibration data. Enrollment and probe video must be separate captures.
@@ -180,8 +182,13 @@ The optional decision output follows
 `schemas/authentication-decision.schema.json`. It stores policy/gate versions,
 terminal state, frame counts, attempt ID and evidence SHA-256, but not the user ID,
 challenge nonce, frame pixels, embeddings or template. Existing output is refused by
-default. For a reportable run, create a `kind: decision` artifact reference and add
-the generated `decision_id` to the run manifest's `output_artifact_ids`.
+default. For a reportable run, the CLI creates a `kind: decision` artifact reference
+and adds the generated decision to the run manifest automatically when
+`--registration-context` is supplied. Start from
+`configs/run-registration.example.json`, replace every placeholder with approved run
+metadata, and use a distinct run/output artifact ID for each invocation. The result
+is accompanied by `<output>.artifact-reference.json` and
+`<output>.run-manifest.json`.
 
 Camera input opens a local OpenCV preview by default. Keep one face inside the guide
 and press `q` or `Esc` to cancel. Use `--no-preview` only for an intentional headless
@@ -242,6 +249,7 @@ python -m src.face_auth.evaluation.pad_cli \
   --run-id run-pad-calibration-v1 \
   --split calibration \
   --max-bpcer 0.05 \
+  --registration-context configs/run-registration.json \
   --output outputs/pad/pad-calibration-v1.json
 ```
 
@@ -259,6 +267,7 @@ python -m src.face_auth.evaluation.pad_cli \
   --threshold-version pad-validation-v1 \
   --run-id run-pad-test-v1 \
   --split test \
+  --registration-context configs/run-registration.json \
   --output outputs/pad/pad-test-v1.json
 ```
 
@@ -266,7 +275,12 @@ For the original Open Model Zoo `anti-spoof-mn3` ONNX artifact, add `--pad-runti
 
 The evaluator records sample outcomes, valid-frame counts, model/threshold versions, latency, APCER, BPCER, ACER, worst-species and per-species APCER, presentation/exclusion counts, and Wilson 95% intervals. It also binds the run to the Git commit, manifest/model SHA-256, and each selected source video's SHA-256 and byte count. Inputs are rechecked after evaluation so mid-run changes abort the report.
 
-Formal runs require a clean Git worktree and refuse an existing output path. `--allow-dirty` and `--overwrite` exist for explicit local debugging; do not use them for reportable experiments. Multi-face, insufficient-quality, load, and model failures are reported separately instead of being counted as PAD success.
+Formal runs require a clean Git worktree and refuse an existing output path. The
+registration context `run_id` must match the PAD `--run-id`; a successful report also
+gets immutable artifact-reference and run-manifest sidecars. `--allow-dirty` and
+`--overwrite` exist for explicit local debugging, but registered runs reject
+`--overwrite`. Multi-face, insufficient-quality, load, and model failures are
+reported separately instead of being counted as PAD success.
 
 ## 9. Scenario and gate-threshold workflows
 

@@ -52,7 +52,8 @@ These counts identify the snapshot only. Use the current test command rather tha
 | Repeated-content detection | Smoke-tested | codec-tolerant batch gate plus post-challenge streaming veto and immediate `SECURITY_DENIED` transition | Genuine/attack false-positive study across codecs and cameras. |
 | Camera-motion gate | Implemented | background motion estimator | Target-camera calibration; currently retry-oriented evidence only. |
 | Passive PAD | Capture/evaluation harness implemented; external artifact blocked | TorchScript/ONNX adapters, fail-closed model registry, physical capture CLI/protocol, manifest validator, source-bound evaluator, APCER/BPCER and attack-species metrics exist | Approved model, license/checksum, authorized capture sessions, and held-out physical evaluation. |
-| PAD report provenance | Implemented | Run ID, Git state, manifest/model/source-video SHA-256, byte counts, immutable-by-default output, and `pad-evaluation-report.schema.json` | Register each completed report in the repository-wide run/artifact manifest workflow. |
+| PAD report provenance | Implemented | Run ID, Git state, manifest/model/source-video SHA-256, byte counts, immutable-by-default output, and `pad-evaluation-report.schema.json` | Produce final reports from an approved model and held-out physical data. |
+| Run/artifact registration | Implemented | Explicit registration context, automatic decision/report references, completed run manifests, actual output hashes, immutable sidecars, and rollback tests | Use approved IDs and environment hashes in formal runs; aggregate only when a future experiment intentionally has multiple outputs. |
 | Active liveness | Implemented | randomized challenge, live instruction overlay, displayed-frame boundary binding, and head-turn/blink logic | Physical replay study, accessibility alternatives, threshold calibration. |
 | Identity continuity | Implemented | template-anchored temporal gate | Person-switch and occlusion evaluation on held-out sessions. |
 | Adversarial inspection | Implemented as optional veto | transform-consistency and feature-squeeze modules | Clean calibration, adaptive attack evaluation, latency cost. |
@@ -110,7 +111,6 @@ These are not reasons to discard the implementation. They are the shortest path 
 | Priority | Gap | Required follow-up |
 |---|---|---|
 | P0 before a FULL claim | No approved PAD checkpoint or held-out physical dataset is present. | Acquire, license-check, hash, calibrate, and evaluate the model before enabling a reportable FULL profile. |
-| P1 | PAD reports and face-auth decisions have JSON Schemas and artifact references, but repository-wide run/artifact registration remains manual. | Register every emitted report in run manifests and artifact references automatically. |
 | P1 | Templates, sessions, and tokens use local NPZ/in-memory adapters. | Add encrypted, transactional persistence before any multi-process or remote-service use. |
 
-PAD reports no longer serialize local manifest or model paths. Formal runs refuse a dirty Git worktree and an existing output path by default; `--allow-dirty` and `--overwrite` are explicit non-default escape hatches for local debugging only.
+PAD reports no longer serialize local manifest or model paths. Formal runs refuse a dirty Git worktree and an existing output path by default; `--allow-dirty` and `--overwrite` are explicit non-default escape hatches for local debugging only. When an explicit registration context is supplied, PAD reports and authentication decisions automatically emit artifact-reference and completed run-manifest sidecars; registered outputs never allow overwrite.

@@ -53,8 +53,10 @@ session creation
 | `evaluation/pad_cli.py` | Reproducible, immutable-by-default labeled-video PAD report command. |
 | `evaluation/pad_capture.py` | Authorized physical PAD capture session and append-only receipt workflow. |
 | `evaluation/pad_capture_cli.py` | Capture preparation, verification and manifest-materialization commands. |
+| `../experiments/artifact_registration.py` | Explicit-context output registration and immutable run/reference sidecars. |
 | `../../schemas/pad-evaluation-report.schema.json` | Machine-readable PAD report and provenance contract. |
 | `../../schemas/authentication-decision.schema.json` | Machine-readable terminal authentication decision contract. |
+| `../../schemas/run-registration-context.schema.json` | Machine-readable metadata required before automatic output registration. |
 | `cli.py` | Separate `enroll` and `authenticate` commands. |
 
 Attack-video generation is separate under `src/attack_scenarios/`.
@@ -102,8 +104,11 @@ replace passive PAD or the final batch replay gate.
 Pass `--decision-output outputs/face-auth/decision.json` to persist the terminal
 policy result or live replay veto without saving identity labels or biometric input.
 The output is immutable by default; `--overwrite-decision-output` is for disposable
-local reruns only. Register its `decision_id` in the producing run manifest when the
-result is used as experiment evidence.
+local reruns only. For experiment evidence, also pass
+`--registration-context configs/run-registration.json`. The command then writes
+`decision.json.artifact-reference.json` and `decision.json.run-manifest.json`, binding
+the decision's actual bytes to the explicit run metadata. Registered outputs cannot
+use the overwrite option and require an explicit `--device`.
 
 ## Documentation map
 

@@ -73,8 +73,16 @@ frames, crops, embeddings, and template. Existing outputs are not overwritten un
 `--overwrite-decision-output` is explicitly supplied.
 
 The artifact is unsigned local evidence. Its `decision_id` and generated
-`kind: decision` artifact reference can be listed in a repository run manifest, but
-this does not provide remote client attestation or production audit-log durability.
+`kind: decision` artifact reference can be listed in a repository run manifest.
+When `--registration-context <path>` is supplied with `--decision-output`, the CLI
+generates that reference and a completed run manifest automatically. The context must
+declare the experiment/requirement IDs, environment hash, seed, input artifact IDs,
+reproduction command, output artifact ID, and relative URI. Git state, execution
+times, configuration hash, output hash, and byte count come from the actual run.
+Registered authentication runs also require an explicit `--device` so the manifest
+does not guess which runtime device was used.
+This registration does not provide remote client attestation or production audit-log
+durability.
 
 ## FULL Profile Required Gates
 

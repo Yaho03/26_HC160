@@ -9,7 +9,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.common.reproducibility import git_state, sha256_file, stable_json_bytes
+from src.common.reproducibility import (
+    git_state,
+    sha256_file,
+    stable_json_bytes,
+    stable_json_sha256,
+)
+from src.experiments.artifact_registration import (
+    ArtifactRegistrationError,
+    RegistrationContext,
+    load_registration_context,
+    preflight_registration,
+    register_completed_output,
+)
+from src.experiments.run_manifest import RunManifest
 from src.face_auth.evaluation.pad_evaluator import (
     PADVideoEvaluator,
     evaluate_pad_manifest,
@@ -33,9 +46,13 @@ def main() -> int:
     args = _parser().parse_args()
     _validate_args(args)
     target = Path(args.output)
+    context, registration_started_at = _prepare_registration(args, target)
+    protected_inputs = [Path(args.manifest), Path(args.pad_model)]
+    if args.registration_context is not None:
+        protected_inputs.append(Path(args.registration_context))
     _validate_output_path(
         target,
-        inputs=(Path(args.manifest), Path(args.pad_model)),
+        inputs=tuple(protected_inputs),
         overwrite=args.overwrite,
     )
     try:
@@ -143,6 +160,27 @@ def main() -> int:
         "samples": sample_payloads,
     }
     _atomic_json_write(target, payload, overwrite=args.overwrite)
+    if context is not None:
+        try:
+            register_completed_output(
+                target,
+                context=context,
+                kind="report",
+                created_at=payload["created_at"],
+                config_sha256=_pad_config_sha256(args, model_sha256),
+                git_commit=code_state["git_commit"],
+                dirty_worktree=code_state["dirty_worktree"],
+                device={
+                    "type": args.device,
+                    "runtime": args.pad_runtime,
+                    "providers": args.pad_provider or [],
+                },
+                started_at=registration_started_at,
+                ended_at=RunManifest.utc_now(),
+            )
+        except (ArtifactRegistrationError, OSError) as error:
+            target.unlink(missing_ok=True)
+            raise SystemExit(f"unable to register PAD report: {error}") from error
     print(json.dumps(payload["metrics"], ensure_ascii=False, indent=2))
     return 0 if payload["metrics"]["sample_counts"]["evaluated"] else 2
 
@@ -172,6 +210,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-dir", default=".")
     parser.add_argument("--allow-dirty", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--registration-context",
+        help=(
+            "write immutable artifact-reference and run-manifest sidecars from "
+            "an explicit registration context"
+        ),
+    )
     parser.add_argument("--split", choices=["calibration", "test"], default="test")
     parser.add_argument("--max-bpcer", type=float, default=0.05)
     parser.add_argument("--require-device-disjoint", action="store_true")
@@ -210,6 +255,58 @@ def _validate_args(args) -> None:
         raise SystemExit("--manifest-id must not be empty")
 
 
+def _prepare_registration(
+    args, target: Path
+) -> tuple[RegistrationContext | None, str | None]:
+    if args.registration_context is None:
+        return None, None
+    if args.overwrite:
+        raise SystemExit(
+            "registered PAD outputs are immutable; remove --overwrite"
+        )
+    try:
+        context = load_registration_context(args.registration_context)
+        preflight_registration(target)
+    except ArtifactRegistrationError as error:
+        raise SystemExit(f"unable to prepare PAD registration: {error}") from error
+    if context.run_id != args.run_id:
+        raise SystemExit(
+            "registration context run_id must match the PAD --run-id"
+        )
+    return context, RunManifest.utc_now()
+
+
+def _pad_config_sha256(args, model_sha256: str) -> str:
+    return stable_json_sha256(
+        {
+            "mode": args.mode,
+            "split": args.split,
+            "manifest_id": args.manifest_id,
+            "pad_model": {
+                "version": args.pad_model_version,
+                "sha256": model_sha256,
+                "runtime": args.pad_runtime,
+                "providers": args.pad_provider or [],
+                "input_size": args.pad_input_size,
+                "live_class_index": args.pad_live_class_index,
+                "output_kind": args.pad_output_kind,
+            },
+            "live_threshold": args.live_threshold,
+            "threshold_version": args.threshold_version,
+            "max_bpcer": args.max_bpcer,
+            "device": args.device,
+            "max_frames": args.max_frames,
+            "min_valid_frames": args.min_valid_frames,
+            "require_device_disjoint": args.require_device_disjoint,
+            "quality": {
+                "min_blur_variance": args.min_blur_variance,
+                "min_brightness": args.min_brightness,
+                "max_brightness": args.max_brightness,
+            },
+        }
+    )
+
+
 def _validate_output_path(
     output: Path, *, inputs: tuple[Path, ...], overwrite: bool
 ) -> None:
@@ -228,11 +325,22 @@ def _atomic_json_write(path: Path, value: dict[str, Any], *, overwrite: bool) ->
     with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as handle:
         temporary = Path(handle.name)
         handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
     try:
-        os.replace(temporary, path)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise
+        if overwrite:
+            os.replace(temporary, path)
+            temporary = None
+        else:
+            try:
+                os.link(temporary, path)
+            except FileExistsError as error:
+                raise SystemExit(
+                    f"refusing to overwrite existing file: {path}"
+                ) from error
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def _verify_inputs_unchanged(
