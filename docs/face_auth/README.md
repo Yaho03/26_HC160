@@ -79,6 +79,11 @@ python -m unittest discover -s tests/unit -v
 python -m unittest discover -s tests/integration -v
 ```
 
+`.github/workflows/face-auth.yml`은 Python 3.11에서
+`requirements-face-auth.lock`을 검증하고 `--require-hashes`로 설치한 뒤 unit/integration
+test를 실행한다. Dependency-free research contract workflow와 분리되어 있으며 model
+checkpoint를 다운로드하거나 physical camera를 실행하지 않는다.
+
 전체 예시와 troubleshooting은 `../14_LOCAL_RUNBOOK.md`를 따른다.
 
 Webcam command는 기본 preview를 표시하고 recorded-video command는 headless다. `q` 또는

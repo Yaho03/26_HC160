@@ -15,11 +15,13 @@
 |---|---|---|
 | DOC-001 | 구현됨 | 범위, API contract, threat model, module map과 limitation 문서화 |
 | EVAL-001 | 부분 구현 | Legacy limitation 문서화. 과거 주장을 수정 held-out data에서 재실행하지 않음 |
-| DEP-001 | 부분 구현 | Python dependency version 고정. 외부 model checksum과 clean-checkout bootstrap 미완료 |
+| DEP-001 | 부분 구현 | Python package의 clean CI lock 구현. 승인 외부 model artifact와 배포 checksum은 미완료 |
+| DEP-002 | 구현됨 | Linux/amd64 Python 3.11 CI가 SHA-256 lock에서 전체 transitive dependency를 설치하고 direct pin drift를 거부 |
 | EXP-001 | 부분 구현 | Dataset manifest와 leakage validator 존재. 최종 subject/session/device-disjoint dataset 미생성 |
 | ARCH-001 | 구현됨 | State, gate, policy와 fail-closed integration test 통과 |
 | SEC-001 | 부분 구현 | Enrollment 분리·token lifecycle 존재. Encrypted persistent template storage 없음 |
 | ATK-001 | 구현됨 | Manifest 기반 replay/insertion runner와 test 존재 |
+| CI-001 | 구현됨 | Python 3.11 workflow가 고정 dependency를 설치하고 관련 변경에서 unit/integration suite 실행 |
 | FR-101 | 구현됨 | Nonce, challenge, state, expiry와 replay test |
 | FR-102 | 구현됨 | Webcam/video 공통 `FrameSource`, bounded latest-frame buffer와 drop test |
 | FR-103 | 구현됨 | Quality failure를 retryable로 처리하고 model error와 구분 |

@@ -1,0 +1,72 @@
+name: Face auth Python 3.11
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/face_auth/**"
+      - "src/attack_scenarios/**"
+      - "src/common/reproducibility.py"
+      - "src/contracts/**"
+      - "schemas/**"
+      - "configs/**"
+      - "tests/unit/**"
+      - "tests/integration/**"
+      - "requirements-face-auth.txt"
+      - "requirements-face-auth.lock"
+      - "scripts/verify_face_auth_lock.py"
+      - ".github/workflows/face-auth.yml"
+  pull_request:
+    paths:
+      - "src/face_auth/**"
+      - "src/attack_scenarios/**"
+      - "src/common/reproducibility.py"
+      - "src/contracts/**"
+      - "schemas/**"
+      - "configs/**"
+      - "tests/unit/**"
+      - "tests/integration/**"
+      - "requirements-face-auth.txt"
+      - "requirements-face-auth.lock"
+      - "scripts/verify_face_auth_lock.py"
+      - ".github/workflows/face-auth.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: face-auth-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit and integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install OpenCV system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libgl1 libglib2.0-0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-face-auth.lock
+      - name: Validate dependency lock contract
+        run: python scripts/verify_face_auth_lock.py
+      - name: Install hash-locked face-auth dependencies
+        run: python -m pip install --require-hashes -r requirements-face-auth.lock
+      - name: Verify dependency consistency
+        run: python -m pip check
+      - name: Run face-auth unit tests
+        run: python -m unittest discover -s tests/unit -v
+      - name: Run face-auth integration tests
+        run: python -m unittest discover -s tests/integration -v

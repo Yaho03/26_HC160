@@ -23,6 +23,7 @@ git status -sb
 ## 2. Python 환경
 
 - 목표 runtime: Python 3.11
+- 자동화된 face-auth CI runtime: Python 3.11 + `requirements-face-auth.lock`
 - 전체 prototype을 로컬에서 확인한 runtime: Python 3.9 + `requirements-face-auth.txt`
 - Research contract test: ML 의존성이 없어 system Python 3.13에서도 실행 기록이 있음
 
@@ -34,6 +35,18 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-face-auth.txt
 ```
+
+CI와 clean Linux 검증은 CPython 3.11 `linux/amd64`용 전체 dependency lock을 사용한다.
+
+```bash
+python scripts/verify_face_auth_lock.py
+python -m pip install --require-hashes -r requirements-face-auth.lock
+python -m pip check
+```
+
+Minimal Debian/Ubuntu image에서는 OpenCV import 전에 `libgl1`, `libglib2.0-0`도 설치한다.
+`requirements-face-auth.txt`는 개발용 cross-platform direct dependency 목록이고,
+`requirements-face-auth.lock`은 CI target platform 전용 transitive hash lock이다.
 
 승인된 ONNX PAD checkpoint를 평가할 때만 optional runtime을 설치한다.
 
@@ -60,6 +73,10 @@ python -m unittest discover -s tests -v
 문서화된 snapshot에서 두 번째 명령은 Python 3.9로 144개 test를 통과했다. Test-only
 TorchScript trace의 warning은 실패가 아니지만 failed 또는 errored test는 실패다. 현재
 revision은 반드시 명령을 다시 실행해 확인한다.
+
+`.github/workflows/face-auth.yml`은 Python 3.11에서 direct pin과 SHA-256 항목을 검증하고,
+`--require-hashes`로 lock을 설치한 뒤 `pip check`, unit test와 integration test를 실행한다.
+이 workflow는 camera나 PAD checkpoint를 내려받지 않으며 physical attack 정확도를 검증하지 않는다.
 
 ## 4. Dataset manifest workflow
 

@@ -67,6 +67,7 @@ threshold, sample 수, confidence interval과 limitation을 기록해야 보고 
 | Identity continuity | 구현됨 | Template-anchored temporal gate | Held-out person-switch·occlusion 평가 |
 | Adversarial inspection | Optional veto로 구현 | Transform-consistency와 feature-squeeze module | Clean calibration, adaptive attack, latency 평가 |
 | Scenario generation | 구현됨 | Manifest 기반 insertion/replay builder | Scenario 확장과 실제 physical attack capture |
+| Face-auth CI | 구현됨 | Python 3.11 linux/amd64 workflow, direct pin drift 검사, transitive SHA-256 lock 설치, `pip check`, unit/integration suite | Model artifact, physical camera, ONNX와 target-device 성능은 별도 검증 job 필요 |
 | Legacy adversarial training | 역사적 결과만 존재 | 기존 defense output과 script | 올바른 disjoint train/validation/test 재실행과 adaptive attack |
 | UI 또는 service API | 미구현 | Local CLI만 존재 | 검증 artifact 확보 후 read-only demo/API 검토 |
 | Secure persistence | 운영 확장 | In-memory store와 local NPZ | DB transaction, encryption, KMS/HSM, retention과 audit |
@@ -119,9 +120,7 @@ test row로 tuning하면 안 된다.
 | 우선순위 | Gap | 필수 후속 작업 |
 |---|---|---|
 | P0 before FULL claim | 승인 PAD checkpoint 또는 held-out physical dataset이 없음 | FULL profile을 보고 가능 상태로 만들기 전에 model을 확보하고 license·hash·calibration·evaluation 완료 |
-| P1 | GitHub CI가 dependency-free research test만 실행 | 고정 face-auth CI job 또는 heavyweight validation workflow 추가 |
 | P1 | PAD report에는 schema와 run/source provenance가 있지만 face-auth decision과 전체 run/artifact 등록이 미완료 | Decision schema 정의 및 모든 report를 run manifest와 artifact reference에 등록 |
-| P1 | `requirements-face-auth.txt`는 version pin만 있고 hash lock이 없음. Target Python 3.11과 전체 local run Python 3.9가 다름 | Clean Python 3.11 검증 및 locked environment artifact 공개 |
 | P1 | Template, session과 token이 local NPZ/in-memory adapter 사용 | Multi-process 또는 remote service 전에 encrypted transactional persistence 추가 |
 
 PAD report는 더 이상 local manifest/model path를 직렬화하지 않는다. Formal run은 기본적으로
