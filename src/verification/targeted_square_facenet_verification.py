@@ -89,6 +89,11 @@ def main() -> None:
     parser.add_argument("--image-format", default="png", choices=["png", "jpg"])
     args = parser.parse_args()
 
+    if args.epsilon <= 0:
+        raise ValueError("--epsilon must be greater than 0.")
+    if args.max_queries < 2:
+        raise ValueError("--max-queries must be at least 2.")
+
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
@@ -140,10 +145,11 @@ def main() -> None:
             adv_emb = facenet_embedding(model, adv)
             best_sim = cosine_score(adv_emb, target_emb)
 
-        queries = 1
+        # source 기준 평가와 초기 무작위 후보 평가를 쿼리 예산에 포함한다.
+        queries = 2
 
-        for query_idx in range(1, args.max_queries + 1):
-            if best_sim >= threshold:
+        for query_idx in range(1, args.max_queries):
+            if best_sim >= threshold or queries >= args.max_queries:
                 break
 
             size = square_size(query_idx, args.max_queries, h, args.p_init)

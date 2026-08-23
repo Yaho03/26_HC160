@@ -197,7 +197,7 @@ def run_attacks() -> None:
         f"--pairs {pairs} --metrics {metrics} --pretrained vggface2 "
         f"--only-initial-rejects --image-format png"
     )
-    jobs: list[tuple[str, str]] = []
+    jobs: list[tuple[str, str, int]] = []
 
     for eps in ["0.005", "0.010"]:
         jobs.append((
@@ -205,6 +205,7 @@ def run_attacks() -> None:
             f"{PY} -m src.verification.targeted_pgd_facenet_verification {common} "
             f"--epsilon {eps} --alpha 0.001 --steps 10 --limit 100 "
             f"--out-dir outputs/verification_attacks_facenet/pgd_png",
+            100,
         ))
 
     for eps in ["0.005", "0.010", "0.020", "0.030"]:
@@ -213,6 +214,7 @@ def run_attacks() -> None:
             f"{PY} -m src.verification.targeted_fgsm_facenet_verification {common} "
             f"--epsilon {eps} --limit 100 "
             f"--out-dir outputs/verification_attacks_facenet/fgsm",
+            100,
         ))
 
     for eps in ["0.010", "0.020", "0.030"]:
@@ -221,6 +223,16 @@ def run_attacks() -> None:
             f"{PY} -m src.verification.targeted_square_facenet_verification {common} "
             f"--epsilon {eps} --max-queries 300 --limit 100 "
             f"--out-dir outputs/verification_attacks_facenet/square",
+            100,
+        ))
+
+    for eps in ["0.010", "0.020", "0.030"]:
+        jobs.append((
+            f"zoo_eps{eps}",
+            f"{PY} -m src.verification.targeted_zoo_facenet_verification {common} "
+            f"--epsilon {eps} --max-queries 300 --coords-per-iter 32 --limit 100 "
+            f"--out-dir outputs/verification_attacks_facenet/zoo",
+            100,
         ))
 
     for eps in ["0.005", "0.010", "0.020"]:
@@ -230,21 +242,28 @@ def run_attacks() -> None:
             f"--epsilon {eps} --alpha 0.001 --steps 20 --limit 100 "
             f"--defense-transform smoothing --smoothing-kernel 13 --smoothing-sigma 3.0 "
             f"--out-dir outputs/verification_attacks_facenet/pgd_adaptive_smoothing",
+            100,
         ))
 
     for eps in ["0.005", "0.010", "0.015", "0.020"]:
         jobs.append((
             f"pgd_adv_training_eps{eps}",
             f"{PY} -m src.verification.targeted_pgd_facenet_verification {common} "
-            f"--epsilon {eps} --alpha 0.001 --steps 10 --limit 200 "
+            f"--epsilon {eps} --alpha 0.001 --steps 10 --limit 125 "
             f"--out-dir outputs/verification_attacks_facenet/pgd_adv_training",
+            125,
         ))
+
+    configured_sessions = sum(sessions for _, _, sessions in jobs)
+    if configured_sessions != 2_000:
+        raise RuntimeError(f"Expected a 2,000-session sweep, got {configured_sessions}")
+    print(f"=== configured attack sessions: {configured_sessions} ===", flush=True)
 
     n_gpu = max(1, torch.cuda.device_count())
     print(f"=== GPUs detected: {torch.cuda.device_count()} -> {n_gpu} worker(s) ===", flush=True)
     buckets = [[] for _ in range(n_gpu)]
-    for idx, job in enumerate(jobs):
-        buckets[idx % n_gpu].append(job)
+    for idx, (label, cmd, _) in enumerate(jobs):
+        buckets[idx % n_gpu].append((label, cmd))
 
     start = time.time()
     def run_bucket(gpu: int) -> list[tuple[str, int]]:
@@ -261,7 +280,7 @@ def run_attacks() -> None:
 def summarize_and_package() -> None:
     metrics = "outputs/verification_facenet/verification_metrics.json"
     attack_root = Path("outputs/verification_attacks_facenet")
-    subdirs = ["pgd_png", "fgsm", "square", "pgd_adaptive_smoothing", "pgd_adv_training"]
+    subdirs = ["pgd_png", "fgsm", "square", "zoo", "pgd_adaptive_smoothing", "pgd_adv_training"]
     for subdir in subdirs:
         root = attack_root / subdir
         if root.exists():
@@ -282,6 +301,12 @@ def summarize_and_package() -> None:
             "fgsm",
             "outputs/handoff/facenet_fgsm_package",
             "outputs/handoff/facenet_fgsm_package.zip",
+            "--epsilons ALL",
+        ),
+        (
+            "zoo",
+            "outputs/handoff/facenet_zoo_package",
+            "outputs/handoff/facenet_zoo_package.zip",
             "--epsilons ALL",
         ),
         (

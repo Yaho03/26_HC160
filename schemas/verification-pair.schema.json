@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hc160.local/schemas/verification-pair.schema.json",
+  "title": "HC160 verification pair",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "pair_id",
+    "protocol_id",
+    "left_sample_id",
+    "right_sample_id",
+    "same_identity",
+    "split"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "pair_id": {"type": "string", "minLength": 1},
+    "protocol_id": {"type": "string", "minLength": 1},
+    "left_sample_id": {"type": "string", "minLength": 1},
+    "right_sample_id": {"type": "string", "minLength": 1},
+    "same_identity": {"type": "boolean"},
+    "split": {"enum": ["train", "calibration", "development", "test"]},
+    "fold": {"type": ["integer", "null"], "minimum": 0},
+    "pair_group_id": {"type": ["string", "null"]}
+  }
+}
