@@ -34,6 +34,7 @@ session 생성
 | `application/token_service.py` | Purpose/context-bound, expiring, one-time token |
 | `application/enrollment_service.py` | 별도 multi-frame template 생성과 local NPZ 저장 |
 | `application/evidence_service.py` | Nonce-bound ordered-frame evidence digest |
+| `application/decision_artifact.py` | 개인정보 최소화 decision 직렬화, atomic output과 artifact reference |
 | `adapters/capture_base.py` | 공통 frame-source와 bounded latest-frame buffer 계약 |
 | `adapters/opencv_capture.py` | Recorded-video와 webcam input |
 | `adapters/opencv_preview.py` | Memory-only camera preview, progress와 사용자 취소 |
@@ -54,6 +55,7 @@ session 생성
 | `evaluation/pad_capture.py` | 승인 physical PAD capture session과 append-only receipt |
 | `evaluation/pad_capture_cli.py` | Capture 준비·검증·manifest materialization command |
 | `../../schemas/pad-evaluation-report.schema.json` | PAD report와 provenance 계약 |
+| `../../schemas/authentication-decision.schema.json` | Machine-readable terminal authentication decision 계약 |
 | `cli.py` | 별도 `enroll`, `authenticate` command |
 
 Attack-video 생성은 `src/attack_scenarios/`에서 별도로 관리한다.
@@ -92,6 +94,12 @@ headless FULL capture를 구동하는 외부 UI는 `--challenge-start-frame-id`�
 `REPLAY DETECTED`를 표시하고 수집을 중단한 뒤, 캡처된 prefix를 기록하고 session을 즉시
 `SECURITY_DENIED`로 전환하며 token을 발급하지 않는다. 이 조기 veto는 passive PAD나
 최종 batch replay gate를 대체하지 않는다.
+
+`--decision-output outputs/face-auth/decision.json`을 전달하면 identity label이나 biometric
+input을 저장하지 않고 terminal policy 결과 또는 live replay veto를 보존한다. Output은
+기본적으로 immutable이며 `--overwrite-decision-output`은 폐기 가능한 local rerun에서만
+사용한다. 결과를 experiment evidence로 사용할 때는 생성한 run manifest에 `decision_id`를
+등록한다.
 
 ## 6. 문서 지도
 

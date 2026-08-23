@@ -238,10 +238,29 @@ class LiveCaptureTest(unittest.TestCase):
         video_args = parser.parse_args(
             ["enroll", "--video", "probe.mp4", "--output", "template.npz"]
         )
+        auth_args = parser.parse_args(
+            [
+                "authenticate",
+                "--video",
+                "probe.mp4",
+                "--template",
+                "template.npz",
+                "--threshold",
+                "0.7",
+                "--threshold-version",
+                "identity-v1",
+                "--user-id",
+                "user-1",
+                "--decision-output",
+                "decision.json",
+            ]
+        )
 
         self.assertTrue(_preview_enabled(camera_args))
         self.assertFalse(_preview_enabled(headless_args))
         self.assertFalse(_preview_enabled(video_args))
+        self.assertEqual(auth_args.decision_output, "decision.json")
+        self.assertFalse(auth_args.overwrite_decision_output)
 
     def test_preview_renders_overlay_and_q_cancels(self):
         preview = OpenCVPreview("test-window")

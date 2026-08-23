@@ -59,6 +59,23 @@ The token also carries the challenge nonce. A capture manifest binds the same no
 
 Any mismatch requires a new authentication session.
 
+## Decision Artifact
+
+`authenticate --decision-output <path>` writes an optional, versioned JSON decision
+artifact after an evidence-bound terminal decision. Both a normal policy result and a
+streaming replay veto use `schemas/authentication-decision.schema.json`.
+
+The artifact records the session and attempt IDs, security profile, terminal state,
+challenge kind and displayed-frame boundary, evidence SHA-256, frame counts, policy
+version, gate statuses/scores/version metadata, and token ID only for `VERIFIED`.
+It deliberately excludes the user ID, challenge nonce, transaction context, raw
+frames, crops, embeddings, and template. Existing outputs are not overwritten unless
+`--overwrite-decision-output` is explicitly supplied.
+
+The artifact is unsigned local evidence. Its `decision_id` and generated
+`kind: decision` artifact reference can be listed in a repository run manifest, but
+this does not provide remote client attestation or production audit-log durability.
+
 ## FULL Profile Required Gates
 
 - `frame_integrity`: frame IDs and monotonic capture times are ordered;

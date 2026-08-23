@@ -152,7 +152,8 @@ python -m src.face_auth.cli authenticate \
   --threshold-version validation-only-example \
   --user-id user-1 \
   --context-hash demo-context-a \
-  --profile BASELINE_ONLY
+  --profile BASELINE_ONLY \
+  --decision-output outputs/face-auth/decision.json
 ```
 
 `0.60`은 release threshold가 아니다. 승인 calibration data에서 생성한 고정 artifact
@@ -160,6 +161,12 @@ python -m src.face_auth.cli authenticate \
 
 Webcam은 `--video` 대신 `--camera 0`을 사용한다. Baseline profile에는 PAD, active
 liveness 또는 continuity가 없으므로 완전한 인증 보안으로 소개하면 안 된다.
+
+선택적 decision output은 `schemas/authentication-decision.schema.json`을 따른다. Policy와
+gate version, terminal state, frame 수, attempt ID와 evidence SHA-256은 저장하지만 user ID,
+challenge nonce, frame pixel, embedding 또는 template은 저장하지 않는다. 기존 output은
+기본적으로 덮어쓰지 않는다. 보고 가능한 run에서는 `kind: decision` artifact reference를
+생성하고 `decision_id`를 run manifest의 `output_artifact_ids`에 추가한다.
 
 Camera input은 기본적으로 local OpenCV preview를 연다. Guide 안에 한 얼굴을 유지하고
 `q` 또는 `Esc`로 취소한다. 의도적인 headless 실행에서만 `--no-preview`를 사용한다.
@@ -279,6 +286,7 @@ Example CSV는 형식 예시이며 실험 증거가 아니다.
 | `FULL profile requires --pad-model` | 예상된 configuration 차단. 검증 model 제공 또는 제한된 baseline profile 사용 |
 | 요청 FAR 미지원 | Impostor calibration pair를 늘리거나 통계적으로 지원되는 operating point 선택 |
 | Output already exists | Silent overwrite 차단. 새 run/artifact ID 사용 |
+| Decision artifact already exists | 새 output path 사용. `--overwrite-decision-output`은 폐기 가능한 명시적 local rerun에서만 사용 |
 | Quality retry가 많음 | Threshold를 바로 낮추지 말고 target-device clean validation data부터 측정 |
 | Re-encoded frame replay 탐지 실패 | Codec transfer를 validation에 포함하고 content-distance threshold calibration |
 
