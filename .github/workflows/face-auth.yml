@@ -3,6 +3,8 @@ name: Face auth Python 3.11
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - "src/face_auth/**"
       - "src/attack_scenarios/**"
