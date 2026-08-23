@@ -1,0 +1,28 @@
+{
+  "aggregation_status": "ready_from_self_contained_handoff",
+  "handoff_contains_attack_index_columns": true,
+  "join_status": "blocked_id_mismatch",
+  "session_rows": 2000,
+  "unique_session_attempt_ids": 2000,
+  "defense_rows": 848,
+  "unique_defense_sample_ids": 212,
+  "exact_matched_sample_ids": 0,
+  "unmatched_defense_sample_ids": 212,
+  "config_candidate_count_distribution": {
+    "0": 87,
+    "2": 125
+  },
+  "unmatched_examples": [
+    "vf_005a59c31dd2",
+    "vf_018e3df2e135",
+    "vf_02078c82c5db",
+    "vf_03b510d57c63",
+    "vf_04d0d58268c4",
+    "vf_0591f2a2c339",
+    "vf_05ba8a308d75",
+    "vf_07cf156bd5b2",
+    "vf_07ec11b48deb",
+    "vf_090fcb274067"
+  ],
+  "note": "Config candidates are diagnostic only and are not safe replacements for sample_id joins."
+}
