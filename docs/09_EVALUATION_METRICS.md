@@ -1,13 +1,22 @@
-# Evaluation Metrics
+# EVALUATION METRICS — 평가 지표
 
-## 1. Verification confusion counts
+| 항목 | 내용 |
+|---|---|
+| 문서명 | 평가 지표 정의서 |
+| 버전 | v1.0 |
+| 상태 | 확정 |
+| 최종 수정일 | 2026-08-23 |
 
-For `same_identity` ground truth and `accepted` decision:
+---
 
-- TP: genuine pair accepted;
-- FN: genuine pair rejected;
-- FP: impostor pair accepted;
-- TN: impostor pair rejected.
+## 1. Verification confusion count
+
+`same_identity` ground truth와 `accepted` decision에 대해 다음을 정의한다.
+
+- TP: genuine pair accept
+- FN: genuine pair reject
+- FP: impostor pair accept
+- TN: impostor pair reject
 
 ```text
 FAR/FMR = FP / (FP + TN)
@@ -17,67 +26,77 @@ TNR      = TN / (TN + FP)
 accuracy = (TP + TN) / all pairs
 ```
 
-Zero denominators produce an explicit undefined value, never zero.
+분모가 0이면 0이 아니라 명시적인 undefined 값을 반환한다.
 
-## 2. Attack metrics
+## 2. 공격 지표
 
-Eligible targeted attempts are different-identity pairs rejected before attack.
+Eligible targeted attempt는 공격 전 거부된 다른 identity pair다.
 
 ```text
-targeted ASR = reject-to-accept successes / eligible targeted attempts
+targeted ASR = reject-to-accept success / eligible targeted attempt
 ```
 
-Also report L0/L2/L-infinity, query count, elapsed time, success by budget, and failure/error counts.
+L0/L2/L-infinity, query 수, elapsed time, budget별 success와 failure/error 수를 함께 보고한다.
 
-## 3. Defense metrics
+## 3. 방어 지표
 
 ```text
 conditional defense success rate
-  = accepted attacks changed to reject / accepted attacks before defense
+  = 방어 전 accepted attack 중 방어 후 reject된 수 / 방어 전 accepted attack 수
 
 conditional ASR after defense
-  = attacks still accepted / accepted attacks before defense
+  = 방어 후에도 accepted인 attack / 방어 전 accepted attack 수
 
 population ASR after defense
-  = attacks accepted after defense / all eligible attack attempts
+  = 방어 후 accepted인 attack / 전체 eligible attack attempt
 ```
 
-These rates have different denominators and must not share one label.
+이 지표들은 분모가 다르므로 같은 label을 사용하면 안 된다.
 
-Clean preservation:
+Clean 성능 보존은 다음과 같이 계산한다.
 
 ```text
 clean TAR delta = TAR_after_defense - TAR_before_defense
 clean FRR delta = FRR_after_defense - FRR_before_defense
 ```
 
-## 4. Detector metrics
+## 4. Detector 지표
 
-Report TPR, FPR, precision, recall, ROC-AUC, threshold, attack species, and sample counts. Detector failures and authentication decisions remain separate.
+TPR, FPR, precision, recall, ROC-AUC, threshold, attack 종류와 sample 수를 보고한다.
+Detector failure와 authentication decision은 분리한다.
 
-## 5. EER and operating points
+## 5. EER와 operating point
 
-EER is estimated on calibration scores by selecting the threshold minimizing `abs(FAR - FRR)`. The selected threshold is then frozen. Final test EER may be reported descriptively, but it must not replace evaluation at the preselected threshold.
+Calibration score에서 `abs(FAR - FRR)`를 최소화하는 threshold로 EER을 추정한 뒤
+threshold를 고정한다. 최종 test EER는 설명용으로 보고할 수 있지만 사전 선택한 threshold
+평가를 대체하지 않는다.
 
-TAR@FAR is reported only where the number of impostor pairs supports the requested FAR. Reports include a confidence interval and do not imply production-grade certainty from a small dataset.
+TAR@FAR는 impostor pair 수가 해당 FAR을 지원할 때만 보고한다. 작은 dataset으로 운영
+수준의 확실성을 암시하지 않고 confidence interval을 포함한다.
 
 ## 6. Runtime
 
-- Attack and defense times have clear start/end boundaries.
-- Model load and warm-up are reported separately from steady-state inference.
-- Report p50, p95, and sample count on named hardware.
-- Randomized and temporal methods report forward-pass/frame count.
+- Attack/defense 시간의 시작과 끝을 명확히 정의한다.
+- Model load·warm-up과 steady-state inference를 분리한다.
+- 명시한 hardware에서 p50, p95와 sample 수를 보고한다.
+- Randomized/temporal method는 forward-pass 또는 frame 수를 기록한다.
 
-## 7. Legacy-result warning
+## 7. Legacy result 주의사항
 
-The committed classification report and verification report use different task definitions. The current verification summary also uses all 212 rows as the denominator for `defense_success_rate`; future centralized evaluation must preserve that historical value while exposing the conditional denominator separately.
+커밋된 classification report와 verification report는 서로 다른 task 정의를 사용한다.
+현재 verification summary의 `defense_success_rate` 분모는 전체 212 row다. 향후 중앙
+evaluation은 이 역사적 값을 보존하면서 conditional denominator를 별도로 제공해야 한다.
 
-## 8. Empirical FAR support rule
+## 8. 경험적 FAR 지원 규칙
 
-With `N` impostor pairs, the smallest non-zero empirical FAR is `1/N`. Therefore a target FAR is treated as supported only when:
+Impostor pair가 `N`개면 관찰 가능한 최소 non-zero empirical FAR은 `1/N`이다. 따라서
+다음을 만족할 때만 target FAR을 지원하는 것으로 본다.
 
 ```text
 N * target_far >= 1
 ```
 
-This is a minimum reporting gate, not proof of production-level certainty. Threshold artifacts store the impostor denominator, achieved FAR numerator/denominator, calibration manifest hash, and pair-ID-set hash. Final test evaluation uses the frozen numeric threshold and reports its own counts without changing the artifact.
+이는 최소 보고 기준이며 운영 수준의 확실성을 증명하지 않는다. Threshold artifact는
+impostor denominator, achieved FAR numerator/denominator, calibration manifest hash와
+pair-ID-set hash를 저장한다. 최종 test는 고정 numeric threshold를 사용하고 artifact를
+변경하지 않은 채 자체 count를 보고한다.

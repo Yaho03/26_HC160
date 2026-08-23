@@ -1,0 +1,8 @@
+rule_id,sessions,accepted_after_attack,attack_accept_rate
+FA-R005,2000,981,0.4905
+FA-R006,2000,981,0.4905
+FA-R001,826,826,1.0
+FA-R003,295,2,0.0068
+FA-R007,280,230,0.8214
+FA-R002,180,94,0.5222
+FA-R008,167,167,1.0

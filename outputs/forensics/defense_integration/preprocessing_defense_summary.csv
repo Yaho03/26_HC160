@@ -1,0 +1,4 @@
+defense,evaluation_basis,total_rows,eligible_attacks,defense_bypassed,defense_bypass_rate,defense_success,defense_success_rate
+bitdepth,artifact_reload,212,171,131,0.766082,40,0.233918
+jpeg,artifact_reload,212,171,171,1.000000,0,0.000000
+smoothing,artifact_reload,212,171,4,0.023392,167,0.976608

@@ -1,0 +1,6 @@
+attack_family,sessions,accepted_after_attack,attack_accept_rate,defense_bypassed,defense_bypass_rate,critical_or_high,avg_risk_score
+ALL,2000,981,0.4905,0,0.0,893,44.64
+adaptive,300,27,0.09,0,0.0,18,24.663
+fgsm,400,245,0.6125,0,0.0,219,48.373
+pgd,1000,702,0.702,0,0.0,649,53.089
+square,300,7,0.023333,0,0.0,7,31.477
