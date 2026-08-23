@@ -1,0 +1,24 @@
+{
+  "id": "dohyunp/hc160-attack-forensics-run",
+  "title": "HC160 Attack Forensics Run",
+  "code_file": "hc160_attack_forensics_run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [
+    "gpu",
+    "face-verification",
+    "security"
+  ],
+  "dataset_sources": [
+    "dohyunp/hc160-verification-data",
+    "dohyunp/hc160-meta",
+    "dohyunp/hc160-src"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}
