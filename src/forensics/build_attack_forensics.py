@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from src.forensics.privacy import artifact_reference, pseudonym
+
 
 DEFAULT_HANDOFF_INDEX = Path(
     "tmp_verification_defense_latest/verification_defense/attack_handoff_jpeg_index.csv"
@@ -86,7 +88,7 @@ def write_csv(rows: list[dict[str, Any]], path: Path) -> None:
         raise ValueError(f"No rows to write: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -291,10 +293,13 @@ def rule_findings(
     if defense_state["strong_defense_bypassed"]:
         add("FA-R004", f"strong defenses bypassed={defense_state['bypassed_defenses']}")
     if source and source in context["multi_target_sources"]:
-        add("FA-R005", f"source={source} targeted multiple identities")
+        add("FA-R005", f"source={pseudonym(source, 'source')} targeted multiple identities")
     if target and target in context["high_risk_targets"]:
         count = context["target_accept_counts"][target]
-        add("FA-R006", f"target={target} accepted attack attempts={count} >= 10")
+        add(
+            "FA-R006",
+            f"target={pseudonym(target, 'target')} accepted attack attempts={count} >= 10",
+        )
     if similarity_before is not None and similarity_before >= 0.30:
         add("FA-R007", f"negative-pair similarity_before={similarity_before:.6f} >= 0.300000")
     low_l2 = l2 is not None and l2 <= 1.25
@@ -369,9 +374,9 @@ def build_sessions(
             "session_id": f"faceauth_sess_{idx:06d}",
             "attempt_id": sample_id,
             "timestamp": timestamp.isoformat(),
-            "account_id": f"acct_{row.get('target_name', 'unknown')}",
-            "source_identity": row.get("source_name", ""),
-            "target_identity": row.get("target_name", ""),
+            "account_id": pseudonym(row.get("target_name", ""), "account"),
+            "source_identity": pseudonym(row.get("source_name", ""), "source"),
+            "target_identity": pseudonym(row.get("target_name", ""), "target"),
             "pair_id": row.get("pair_id", ""),
             "attack": row.get("attack", ""),
             "attack_family": family,
@@ -403,10 +408,10 @@ def build_sessions(
             "risk_level": risk_level(risk_score),
             "rule_hits": ";".join(hits),
             "rule_reasons": json.dumps(findings, ensure_ascii=False, sort_keys=True),
-            "source_file": row.get("source_file", ""),
-            "target_enroll_file": row.get("target_enroll_file", ""),
-            "adv_file": row.get("adv_file", ""),
-            "perturbation_file": row.get("perturbation_file", ""),
+            "source_file": artifact_reference(row.get("source_file", "")),
+            "target_enroll_file": artifact_reference(row.get("target_enroll_file", "")),
+            "adv_file": artifact_reference(row.get("adv_file", "")),
+            "perturbation_file": artifact_reference(row.get("perturbation_file", "")),
         })
     return sessions
 

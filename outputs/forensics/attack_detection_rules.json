@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "domain": "financial_faceauth_attack_forensics",
+  "rules": [
+    {
+      "id": "FA-R001",
+      "name": "Threshold Margin Spike",
+      "severity": "high",
+      "description": "Attack similarity is comfortably above the verification threshold."
+    },
+    {
+      "id": "FA-R002",
+      "name": "Borderline Repeated Attempts",
+      "severity": "medium",
+      "description": "Attack similarity lands near the threshold, which needs repeated-attempt monitoring."
+    },
+    {
+      "id": "FA-R003",
+      "name": "High Query Black-box Pattern",
+      "severity": "medium",
+      "description": "High query count suggests black-box probing such as Square/ZOO."
+    },
+    {
+      "id": "FA-R004",
+      "name": "Strong Defense Bypass",
+      "severity": "critical",
+      "description": "A strong defense such as smoothing still accepts the adversarial attempt."
+    },
+    {
+      "id": "FA-R005",
+      "name": "Multi-target Source",
+      "severity": "medium",
+      "description": "The same source identity appears against multiple target identities."
+    },
+    {
+      "id": "FA-R006",
+      "name": "High-risk Target Account",
+      "severity": "medium",
+      "description": "The same target identity receives many accepted attack attempts."
+    },
+    {
+      "id": "FA-R007",
+      "name": "Look-alike Hard Negative",
+      "severity": "medium",
+      "description": "The clean source-target similarity is already high for a negative pair."
+    },
+    {
+      "id": "FA-R008",
+      "name": "Low-norm Successful Attack",
+      "severity": "high",
+      "description": "The attack succeeds with a small perturbation norm."
+    }
+  ]
+}

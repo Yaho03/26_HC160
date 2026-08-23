@@ -122,6 +122,19 @@ Attack handoff documents:
 
 Defense modules should use `attack_index.csv` and read adversarial images from the `adv_file` column. Keep `sample_id` in every defense result row so attack and defense results can be joined later.
 
+Attack-forensics dashboard outputs:
+
+```bash
+python -m src.forensics.summarize_attack_forensics
+python -m src.forensics.summarize_defense_handoff \
+  --defense-csv /path/to/defense_results_by_sample_id.csv \
+  --sessions-csv outputs/forensics/attack_sessions.csv \
+  --out-dir outputs/forensics/defense_integration
+```
+
+Preprocessing (`artifact_reload`) and adversarial-training (`legacy_record`)
+results are reported separately because their eligible-attack denominators differ.
+
 Final attack result files are not committed to Git because they contain generated images and model outputs. They are shared separately through Google Drive or zip handoff files.
 
 ## Verification baseline

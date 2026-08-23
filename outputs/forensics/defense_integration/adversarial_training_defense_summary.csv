@@ -1,0 +1,2 @@
+defense,evaluation_basis,total_rows,eligible_attacks,defense_bypassed,defense_bypass_rate,defense_success,defense_success_rate
+adv_training,legacy_record,212,212,4,0.018868,208,0.981132
