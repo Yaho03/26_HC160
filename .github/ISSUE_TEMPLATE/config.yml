@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: 협업 가이드
+    url: https://github.com/Yaho03/26_HC160/blob/main/CONTRIBUTING.md
+    about: 브랜치, 커밋, 문서 작성 규칙과 금지 사항을 확인한다.
   - name: 이슈·PR 운영 규칙
     url: https://github.com/Yaho03/26_HC160/blob/main/docs/15_ISSUE_AND_PR_WORKFLOW.md
     about: 이슈를 만들기 전에 요구사항 ID, 분해 기준과 완료 조건을 확인한다.
