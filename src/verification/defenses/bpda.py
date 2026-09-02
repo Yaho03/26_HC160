@@ -56,3 +56,26 @@ def bpda_transform(tensor: torch.Tensor, name: str) -> torch.Tensor:
 
     transformed = _to_tensor(TRANSFORMS[name](_to_pil(tensor)), tensor.device)
     return tensor + (transformed.detach() - tensor.detach())
+
+
+def bpda_transform_batch(tensor: torch.Tensor, names) -> torch.Tensor:
+    """
+    변환 여러 개를 한 배치로 묶는다. 값은 개별 호출과 같고 forward 횟수만 줄어든다.
+
+    공격 루프는 스텝마다 변환 전부를 통과시키므로, 묶지 않으면 forward가 변환 수만큼
+    늘어난다. 표본이 늘면 그 차이가 그대로 실행 시간이 된다.
+    """
+    names = list(names)
+    if not names:
+        raise ValueError("변환을 하나 이상 지정해야 한다")
+
+    unknown = [name for name in names if name not in TRANSFORMS]
+    if unknown:
+        raise KeyError(f"알 수 없는 변환 {unknown}. 사용 가능: {sorted(TRANSFORMS)}")
+
+    source = _to_pil(tensor)
+    transformed = torch.cat(
+        [_to_tensor(TRANSFORMS[name](source), tensor.device) for name in names]
+    )
+    base = tensor.expand(len(names), -1, -1, -1)
+    return base + (transformed.detach() - base.detach())

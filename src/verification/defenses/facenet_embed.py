@@ -25,18 +25,29 @@ _model: Optional[InceptionResnetV1] = None
 _device: Optional[torch.device] = None
 
 
+def select_device(device=None) -> torch.device:
+    """
+    사용할 장치를 고른다. Apple Silicon에서 CPU로 떨어지면 평가가 몇 배 느려진다.
+
+    명시한 값이 있으면 그대로 쓴다. 없으면 CUDA, MPS, CPU 순으로 고른다.
+    """
+    if device is not None:
+        return torch.device(device)
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 def get_model(device=None) -> Tuple[InceptionResnetV1, torch.device]:
     """모델을 최초 1회만 로드하고 이후 재사용한다."""
     global _model, _device
 
     if _model is None:
-        if device is None:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            device = torch.device(device)
-
-        _model = InceptionResnetV1(pretrained="vggface2").eval().to(device)
-        _device = device
+        resolved = select_device(device)
+        _model = InceptionResnetV1(pretrained="vggface2").eval().to(resolved)
+        _device = resolved
 
     return _model, _device
 

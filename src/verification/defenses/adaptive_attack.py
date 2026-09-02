@@ -127,7 +127,7 @@ def run_eot_attack(
     근사하므로 공격자가 보는 detector 출력은 방어가 실제로 계산하는 값과 같다.
     """
     if use_bpda:
-        from src.verification.defenses.bpda import bpda_transform
+        from src.verification.defenses.bpda import bpda_transform_batch
 
         names = list(transforms)
         specs = None
@@ -149,18 +149,18 @@ def run_eot_attack(
 
         consistency_loss = torch.zeros((), device=dev)
         if config.consistency_weight > 0:
+            # 변환본을 한 배치로 묶어 forward를 1회로 줄인다. 변환마다 따로 돌리면
+            # 스텝당 forward가 변환 수만큼 늘고, 표본이 늘수록 그대로 시간이 된다.
             variants = (
-                [bpda_transform(adversarial, name) for name in names]
+                bpda_transform_batch(adversarial, names)
                 if use_bpda
-                else [_apply(adversarial, spec) for spec in specs]
+                else torch.cat([_apply(adversarial, spec) for spec in specs])
             )
-            for variant in variants:
-                squeezed = F.normalize(model(variant), p=2, dim=1)
-                # detector가 보는 값. 작을수록 탐지되지 않는다.
-                consistency_loss = consistency_loss + (
-                    1.0 - F.cosine_similarity(embedding, squeezed).mean()
-                )
-            consistency_loss = consistency_loss / len(variants)
+            squeezed = F.normalize(model(variants), p=2, dim=1)
+            # detector가 보는 값. 작을수록 탐지되지 않는다.
+            consistency_loss = (
+                1.0 - F.cosine_similarity(embedding.expand_as(squeezed), squeezed)
+            ).mean()
 
         loss = identity_loss + config.consistency_weight * consistency_loss
         gradient = torch.autograd.grad(loss, adversarial)[0]
