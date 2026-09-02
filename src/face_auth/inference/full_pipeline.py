@@ -30,11 +30,13 @@ class LivenessEstimator(Protocol):
 
 
 class AdversarialInspector(Protocol):
+    gate_names: tuple[str, ...]
+
     def evaluate(
         self,
         crops: list[Image.Image],
         original_embeddings: list[np.ndarray],
-    ) -> GateResult:
+    ) -> tuple[GateResult, ...]:
         ...
 
 
@@ -81,7 +83,9 @@ class FullEvidencePipeline:
         gate_results = list(baseline.gate_results)
         if not _baseline_ready(baseline):
             gate_results.extend(
-                _not_evaluated_full_gates(self.adversarial_inspector is not None)
+                _not_evaluated_full_gates(
+                    _adversarial_gate_names(self.adversarial_inspector)
+                )
             )
             return FullPipelineObservation(baseline, tuple(gate_results))
 
@@ -119,11 +123,14 @@ class FullEvidencePipeline:
 
         if self.adversarial_inspector is not None:
             try:
-                gate_results.append(
+                gate_results.extend(
                     self.adversarial_inspector.evaluate(crops, embeddings)
                 )
             except Exception:
-                gate_results.append(_model_error("adversarial"))
+                gate_results.extend(
+                    _model_error(name)
+                    for name in _adversarial_gate_names(self.adversarial_inspector)
+                )
 
         return FullPipelineObservation(baseline, tuple(gate_results))
 
@@ -134,16 +141,22 @@ def _baseline_ready(observation: PipelineObservation) -> bool:
     )
 
 
-def _not_evaluated_full_gates(include_adversarial: bool) -> list[GateResult]:
+def _adversarial_gate_names(inspector) -> tuple[str, ...]:
+    """Inspector가 실제로 내보내는 게이트 이름. 없으면 빈 튜플."""
+    if inspector is None:
+        return ()
+    return tuple(getattr(inspector, "gate_names", ("adversarial",)))
+
+
+def _not_evaluated_full_gates(adversarial_gates: tuple[str, ...]) -> list[GateResult]:
     names = [
         "camera_motion",
         "content_replay",
         "passive_pad",
         "active_liveness",
         "continuity",
+        *adversarial_gates,
     ]
-    if include_adversarial:
-        names.append("adversarial")
     return [
         GateResult(
             name,
