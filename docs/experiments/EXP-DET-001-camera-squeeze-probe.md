@@ -237,15 +237,47 @@ python -m src.verification.defenses.probe_analyze \
 같은 함수는 라벨이 섞인 입력을 예외로 거부한다. D4의 규칙을 코드로 강제한 것이다.
 결합 규칙도 clean 통계로만 정규화하며 공격 라벨로 가중치를 학습하지 않는다.
 
+## 7.2 Threshold artifact 생성
+
+```bash
+python -m src.verification.defenses.probe_threshold \
+    --probe outputs/probe/<session_id>/probe.csv \
+    --session outputs/probe/<session_id>/session.json \
+    --target-fpr 0.01 --out outputs/probe/<session_id>/detector_threshold.json
+```
+
+`schemas/detector-threshold-artifact.schema.json`을 따른다. `calibration`에는 clean
+표본만, `evaluation`에는 adversarial 표본만 들어간다. 구조가 이 분리를 드러낸다.
+
+clean 표본 수가 `target_fpr * n < 1`이면 임계값을 만들지 않고 예외를 낸다. 관측값으로
+목표를 만족할 수 없는 상황에서 조용히 FPR 0으로 낮추면 근거 없는 임계값이 artifact로
+굳는다. 목표 FPR 1%에는 clean 표본이 최소 100개 필요하다.
+
+`limitations`는 사이드카에서 자동 도출한다. 피험자 수, 세션 수, 공격 종류 수를 세고
+adaptive attack과 clean TAR delta 미측정을 항상 명시한다. 사람이 적기를 기다리지 않는다.
+
 ## 8. 이후 작업
 
-이 도구가 만든 데이터로 다음을 진행한다.
+1. 표본 확대. 현재 단일 피험자·단일 세션이므로 일반화 근거가 없다.
+2. 공격 종류 확대. 현재 targeted PGD 한 종류다.
+3. Adaptive attack 평가. 공격자가 detector를 아는 경우의 내성.
+4. Clean TAR delta 측정. `07_DEFENSE_AND_DETECTION_SPEC.md` 7절 판정에 필요하다.
+5. 하드코딩 상수를 artifact 참조로 교체.
 
-1. clean 표본만으로 두 detector의 임계값 후보 산출. 목표 FPR을 먼저 고정한다.
-2. adversarial 표본으로 TPR, ROC-AUC 측정. `09_EVALUATION_METRICS.md` 4절의 지표 집합을 따른다.
-3. 임계값 artifact 생성. `schemas/threshold-artifact.schema.json` 준수.
-4. 하드코딩 상수를 artifact 참조로 교체.
-5. `07_DEFENSE_AND_DETECTION_SPEC.md` 7절 기준으로 통과 여부 판정.
+## 10. 첫 artifact (세션 `7b94fe4d1971`)
+
+| 항목 | 값 |
+|---|---|
+| 특징 | 상위 6개 결합, clean 통계로 z 정규화 후 합산 |
+| 목표 FPR | 0.01 |
+| 달성 FPR | 0.01 |
+| TPR | 0.733 |
+| ROC-AUC | 0.982 |
+| clean / adversarial | 300 / 60 |
+
+이 값은 release threshold가 아니다. `limitations`에 다섯 건이 기록돼 있으며 그중
+어느 하나도 해소되지 않았다. TPR 0.733은 적대적 입력 네 개 중 하나를 놓치는 수준이다.
+파이프라인이 계측부터 artifact까지 이어진다는 것을 보이는 용도로만 쓴다.
 
 ## 9. 정지 이미지 스윕 (2026-09-02)
 

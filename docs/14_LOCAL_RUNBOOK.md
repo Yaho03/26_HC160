@@ -335,6 +335,19 @@ Threshold를 산출할 때는 `label=clean` 행만 사용한다. `label=adversar
 
 macOS에서 카메라가 열리지 않으면 터미널 application에 카메라 권한을 허용한다.
 
+Threshold artifact를 만든다.
+
+```bash
+python -m src.verification.defenses.probe_threshold \
+    --probe outputs/probe/<session_id>/probe.csv \
+    --session outputs/probe/<session_id>/session.json \
+    --target-fpr 0.01 --out outputs/probe/<session_id>/detector_threshold.json
+```
+
+목표 FPR 1%에는 clean 표본이 최소 100개 필요하다. 부족하면 임계값을 만들지 않고
+예외를 낸다. 산출된 artifact의 `limitations`를 반드시 읽는다. 검증되지 않은 조건이
+남아 있으면 release threshold로 사용하지 않는다.
+
 ## 11. 자주 발생하는 실패
 
 | 증상 | 의미와 대응 |
