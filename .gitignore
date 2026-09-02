@@ -30,3 +30,6 @@ local_models/
 local_pad_dataset/
 local_pad_reports/
 *.npz
+
+# EXP-DET-001 계측 세션. 얼굴에서 파생된 생체 측정값이므로 커밋하지 않는다.
+outputs/probe/

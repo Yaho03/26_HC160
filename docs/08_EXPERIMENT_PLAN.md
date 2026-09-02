@@ -59,3 +59,9 @@ attack/defense configuration, 통제 변수, metric, 비교 기준, output, repr
 
 각 미완료 행은 `15_ISSUE_AND_PR_WORKFLOW.md`의 규칙에 따라 구현 또는 실험 이슈로
 전환한다.
+
+## 실험별 상세 설계
+
+번호 문서로 다루기에 세부가 많은 실험은 `experiments/`에 별도 설계를 둔다.
+
+- `EXP-DET-001`의 웹캠 계측 도구 설계: `experiments/EXP-DET-001-camera-squeeze-probe.md`

@@ -303,7 +303,39 @@ python -m src.face_auth.evaluation.calibrate_cli \
 
 Example CSV는 형식 예시이며 실험 증거가 아니다.
 
-## 10. 자주 발생하는 실패
+## 10. Squeeze probe 계측 workflow (EXP-DET-001)
+
+Squeezing detector의 임계값을 산출하기 위한 웹캠 표본을 모은다. 이 명령은 판정을
+하지 않는다. 임계값이 없는 상태에서 원시 관측값만 기록한다.
+
+```bash
+python -m src.verification.defenses.probe_capture --subject p01 --frames 300
+```
+
+주요 옵션이다.
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `--subject` | 필수 | 피험자 불투명 ID. 실명·이메일·경로를 넣으면 거부한다 |
+| `--frames` | 300 | 기록할 clean 표본 수 |
+| `--attack-every` | 10 | 공격 생성 주기. `0`이면 clean만 기록 |
+| `--out-dir` | `outputs/probe` | 세션 디렉터리 상위 |
+| `--camera` | 0 | 카메라 인덱스 |
+| `--enroll-img` | 없음 | 등록 이미지. 생략하면 카메라에서 첫 얼굴을 잡는다 |
+
+세션마다 `outputs/probe/<session_id>/`에 `probe.csv`와 `session.json`이 생긴다.
+`Esc` 또는 `q`로 중단해도 그 시점까지의 산출물이 남는다.
+
+기록 중에는 얼굴이 프레임 안에 유지돼야 한다. 얼굴을 찾지 못한 프레임은 표본으로
+세지 않고 `frames_without_face`에 누적된다.
+
+Threshold를 산출할 때는 `label=clean` 행만 사용한다. `label=adversarial` 행은 TPR
+측정 전용이며 임계값 선택에 넣지 않는다. 근거는
+`07_DEFENSE_AND_DETECTION_SPEC.md` 5절과 `experiments/EXP-DET-001-camera-squeeze-probe.md`다.
+
+macOS에서 카메라가 열리지 않으면 터미널 application에 카메라 권한을 허용한다.
+
+## 11. 자주 발생하는 실패
 
 | 증상 | 의미와 대응 |
 |---|---|
@@ -316,7 +348,7 @@ Example CSV는 형식 예시이며 실험 증거가 아니다.
 | Quality retry가 많음 | Threshold를 바로 낮추지 말고 target-device clean validation data부터 측정 |
 | Re-encoded frame replay 탐지 실패 | Codec transfer를 validation에 포함하고 content-distance threshold calibration |
 
-## 11. Commit·report 전 확인
+## 12. Commit·report 전 확인
 
 - `git status -sb`에서 의도한 파일만 있는지 확인
 - 관련 research 및 full test 실행
