@@ -66,7 +66,7 @@ threshold, sample 수, confidence interval과 limitation을 기록해야 보고 
 | Run/artifact 자동 등록 | 구현됨 | 명시적 registration context, decision/report artifact reference, completed run manifest, 실제 output hash, immutable sidecar와 rollback test | Formal run에서 승인 ID와 environment hash 사용. 여러 output 집계는 해당 experiment가 요구할 때 별도 구현 |
 | Active liveness | 구현됨 | Randomized challenge, 실시간 동작 지시, 표시 프레임 경계 결합과 head-turn/blink logic | Physical replay 연구, 접근성 대안, threshold calibration |
 | Identity continuity | 구현됨 | Template-anchored temporal gate | Held-out person-switch·occlusion 평가 |
-| Adversarial inspection | 독립 optional veto 2종으로 구현. 계측·분석·threshold artifact 생성 구현됨 | Transform-consistency(`adversarial`)와 template-shift(`adversarial_template`) 게이트, 공유 변환·임베딩, 정책 통합 test, `squeeze_probe`·`probe_log`·`probe_capture`·`probe_analyze`·`probe_threshold`와 단위 test | 두 게이트의 웹캠 표본 확대와 clean-only threshold 산출, 하드코딩 상수 교체, adaptive attack, conditional ASR 감소 측정, latency 평가 |
+| Adversarial inspection | 독립 optional veto 2종으로 구현. 계측·분석·threshold artifact·방어 전후 비교·gradient adaptive attack 평가 구현됨 | 두 게이트와 정책 통합 test, `squeeze_probe`·`probe_log`·`probe_capture`·`probe_analyze`·`probe_threshold`·`conditional_asr`·`adaptive_attack`과 단위 test | 웹캠 표본 확대(피험자·세션·공격 종류), BPDA adaptive attack, 하드코딩 상수 교체, latency 평가 |
 | Scenario generation | 구현됨 | Manifest 기반 insertion/replay builder | Scenario 확장과 실제 physical attack capture |
 | Face-auth CI | 구현됨 | Python 3.11 linux/amd64 workflow, direct pin drift 검사, transitive SHA-256 lock 설치, `pip check`, unit/integration suite | Model artifact, physical camera, ONNX와 target-device 성능은 별도 검증 job 필요 |
 | Legacy adversarial training | 역사적 결과만 존재 | 기존 defense output과 script | 올바른 disjoint train/validation/test 재실행과 adaptive attack |
