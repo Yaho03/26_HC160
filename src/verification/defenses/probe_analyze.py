@@ -111,7 +111,13 @@ def load_probe_rows(path) -> list[dict]:
             cos_orig_transformed = float(raw["cos_orig_transformed"])
             rows.append(
                 {
+                    # attack_kind 컬럼이 없던 초기 세션은 미상으로 둔다. 소급 적용하지
+                    # 않고, 종류별 보고에서 unspecified로 드러낸다.
+                    "attack_kind": raw.get("attack_kind") or "",
                     **raw,
+                    "attack_kind": raw.get("attack_kind") or (
+                        "" if raw["label"] == "clean" else "unspecified"
+                    ),
                     "self_consistency": 1.0 - cos_orig_transformed,
                     "template_shift": abs(cos_orig_enroll - cos_transformed_enroll),
                 }

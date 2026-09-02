@@ -274,6 +274,13 @@
             "null"
           ],
           "description": "07 7절의 clean TAR 예산을 만족하는지. 판정 근거를 숨기지 않기 위해 명시한다."
+        },
+        "tpr_by_attack_kind": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "공격 종류별 TPR과 분자·분모. 07_DEFENSE_AND_DETECTION_SPEC.md 7절은 공격 성공률을 단일 평균으로 숨기지 말 것을 요구한다. attack_kind 컬럼이 없던 초기 세션은 unspecified로 표기한다."
         }
       }
     },

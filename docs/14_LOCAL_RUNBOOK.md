@@ -319,6 +319,7 @@ python -m src.verification.defenses.probe_capture --subject p01 --frames 300
 | `--subject` | 필수 | 피험자 불투명 ID. 실명·이메일·경로를 넣으면 거부한다 |
 | `--frames` | 300 | 기록할 clean 표본 수 |
 | `--attack-every` | 10 | 공격 생성 주기. `0`이면 clean만 기록 |
+| `--attack-kinds` | `pgd` | 쉼표로 구분. 기회마다 번갈아 쓴다. `pgd`, `fgsm`, `pgd_low_eps` |
 | `--out-dir` | `outputs/probe` | 세션 디렉터리 상위 |
 | `--camera` | 0 | 카메라 인덱스 |
 | `--enroll-img` | 없음 | 등록 이미지. 생략하면 카메라에서 첫 얼굴을 잡는다 |

@@ -30,6 +30,13 @@ from src.verification.defenses.facenet_embed import (
     FaceNetBatchEmbedder,
     get_embedding,
 )
+from src.verification.defenses.probe_attacks import (
+    ATTACK_KINDS,
+    AttackConfig,
+    attack_for_index,
+    build_attack_params,
+    run_attack,
+)
 from src.verification.defenses.probe_log import ProbeWriter, write_session_sidecar
 from src.verification.defenses.squeeze_probe import (
     TRANSFORM_ORDER,
@@ -182,11 +189,17 @@ def capture_session(
     epsilon: float,
     steps: int,
     step_size: float,
+    attack_kinds: list[str] | None = None,
     no_preview: bool = False,
     width: int | None = None,
     height: int | None = None,
     device=None,
 ) -> tuple[Path, Path]:
+    # 촬영 시작 전에 공격 파라미터를 검증한다. 촬영을 다 하고 실패하면 사람 시간을 버린다.
+    attack_kinds = list(attack_kinds or ["pgd"])
+    attack_config = AttackConfig(epsilon=epsilon, steps=steps, step_size=step_size)
+    attack_params = build_attack_params(attack_kinds, attack_config)
+
     session_id = secrets.token_hex(6)
     out_dir = Path(out_dir) / session_id
     csv_path = out_dir / "probe.csv"
@@ -226,6 +239,8 @@ def capture_session(
     # 사이드카에 필요한 상태는 try 밖에서 초기화한다. 중단되더라도 provenance 없이
     # CSV만 남는 상황을 막아야 한다.
     headroom: list[float] = []
+    attack_index = 0
+    attack_counts: dict[str, int] = {kind: 0 for kind in attack_kinds}
     preview = Preview(enabled=not no_preview)
     started = time.perf_counter()
     elapsed = 0.0
@@ -276,13 +291,9 @@ def capture_session(
                 counters["samples_clean"] += 1
 
                 if should_attack(frame_idx, attack_every):
-                    adv_crop, _ = generate_adversarial(
-                        crop,
-                        enroll_torch,
-                        epsilon=epsilon,
-                        n_steps=steps,
-                        step_size=step_size,
-                        device=device,
+                    kind = attack_for_index(attack_index, attack_kinds)
+                    adv_crop, _ = run_attack(
+                        kind, crop, enroll_torch, attack_config, device=device
                     )
                     adv_reading = probe_crop(adv_crop, enroll_vector, embedder)
                     counters["rows"] += writer.write_sample(
@@ -292,8 +303,11 @@ def capture_session(
                         dropped_frames=counters["read_failures"],
                         label="adversarial",
                         reading=adv_reading,
+                        attack_kind=kind,
                     )
                     counters["samples_adversarial"] += 1
+                    attack_counts[kind] += 1
+                    attack_index += 1
 
                 preview.show(frame, box, counters, frames, "")
                 frame_idx += 1
@@ -322,11 +336,11 @@ def capture_session(
                 subject_id=subject_id,
                 camera=camera_info,
                 attack={
-                    "kind": "pgd_targeted_enroll",
-                    "epsilon": epsilon,
-                    "steps": steps,
-                    "step_size": step_size,
+                    "kinds": attack_kinds,
+                    "params": attack_params,
+                    "counts": attack_counts,
                     "every": attack_every,
+                    "target": "enroll_template",
                 },
                 counters=counters,
                 elapsed_sec=elapsed,
@@ -398,6 +412,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--epsilon", type=float, default=0.03)
     parser.add_argument("--steps", type=int, default=40)
     parser.add_argument("--step-size", type=float, default=0.002)
+    parser.add_argument(
+        "--attack-kinds",
+        default="pgd",
+        help=f"쉼표로 구분한 공격 종류. 기회마다 번갈아 쓴다. 사용 가능: {','.join(ATTACK_KINDS)}",
+    )
     parser.add_argument("--width", type=int, default=1280, help="캡처 폭. MTCNN 속도에 직결")
     parser.add_argument("--height", type=int, default=720, help="캡처 높이")
     parser.add_argument(
@@ -420,6 +439,7 @@ def main() -> int:
         epsilon=args.epsilon,
         steps=args.steps,
         step_size=args.step_size,
+        attack_kinds=[k.strip() for k in args.attack_kinds.split(",") if k.strip()],
         no_preview=args.no_preview,
         width=args.width,
         height=args.height,

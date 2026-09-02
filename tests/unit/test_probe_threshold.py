@@ -12,24 +12,25 @@ from src.verification.defenses.probe_threshold import (
 )
 
 
-def _write_probe(path, *, n_clean, n_adversarial, sessions=("s1",), subjects=("p01",)):
+def _write_probe(path, *, n_clean, n_adversarial, sessions=("s1",), subjects=("p01",), attack_kinds=("pgd",)):
     rows = []
     index = 0
     for session in sessions:
         for subject in subjects:
             for i in range(n_clean):
-                rows.append((session, subject, f"f{i:06d}_clean", i, "clean", 0.95 - i * 0.0001))
+                rows.append((session, subject, f"f{i:06d}_clean", i, "clean", 0.95 - i * 0.0001, ""))
             for i in range(n_adversarial):
-                rows.append((session, subject, f"f{i:06d}_adv", i, "adversarial", 0.5 - i * 0.001))
+                rows.append((session, subject, f"f{i:06d}_adv", i, "adversarial",
+                             0.5 - i * 0.001, attack_kinds[i % len(attack_kinds)]))
     with Path(path).open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=PROBE_COLUMNS)
         writer.writeheader()
-        for session, subject, sample_id, frame, label, cos_ot in rows:
+        for session, subject, sample_id, frame, label, cos_ot, kind in rows:
             for transform in ("blur0.8", "jpeg_q75"):
                 writer.writerow({
                     "session_id": session, "subject_id": subject, "sample_id": sample_id,
                     "frame_idx": frame, "frame_ts_ms": 0.0, "dropped_frames": 0,
-                    "label": label, "transform": transform,
+                    "label": label, "attack_kind": kind, "transform": transform,
                     "cos_orig_enroll": 0.8, "cos_transformed_enroll": 0.8,
                     "cos_orig_transformed": cos_ot, "embed_ms": 10.0,
                 })
@@ -202,6 +203,40 @@ class AggregationTest(unittest.TestCase):
         self.assertIsNotNone(evaluation["clean_tar_delta_pp"])
         self.assertLessEqual(evaluation["clean_tar_delta_pp"], 0.0)
         self.assertIsInstance(evaluation["meets_clean_cost_budget"], bool)
+
+
+class PerAttackKindTest(unittest.TestCase):
+    """07 7절: 공격 성공률을 단일 평균으로 숨기지 않고 종류별로 보고한다."""
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self._dir.cleanup()
+
+    def test_each_kind_is_reported_separately(self):
+        probe = _write_probe(
+            Path(self._dir.name) / "probe.csv",
+            n_clean=300, n_adversarial=60, attack_kinds=("pgd", "fgsm"),
+        )
+        artifact = build_artifact(probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=1)
+        by_kind = artifact["evaluation"]["tpr_by_attack_kind"]
+
+        self.assertEqual(set(by_kind), {"pgd", "fgsm"})
+        for kind, bucket in by_kind.items():
+            self.assertEqual(bucket["total"], 30, kind)
+
+    def test_numerator_and_denominator_are_reported(self):
+        """종류별 표본이 적으면 점추정만으로 판단할 수 없다."""
+        probe = _write_probe(
+            Path(self._dir.name) / "probe.csv",
+            n_clean=300, n_adversarial=60, attack_kinds=("pgd", "fgsm"),
+        )
+        artifact = build_artifact(probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=1)
+
+        for bucket in artifact["evaluation"]["tpr_by_attack_kind"].values():
+            self.assertIn("detected", bucket)
+            self.assertIn("total", bucket)
 
 
 class LimitationHonestyTest(unittest.TestCase):

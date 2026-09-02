@@ -27,6 +27,7 @@ PROBE_COLUMNS: tuple[str, ...] = (
     "frame_ts_ms",
     "dropped_frames",
     "label",
+    "attack_kind",
     "transform",
     "cos_orig_enroll",
     "cos_transformed_enroll",
@@ -87,10 +88,16 @@ class ProbeWriter:
         dropped_frames: int,
         label: str,
         reading: ProbeReading,
+        attack_kind: str = "",
     ) -> int:
         """표본 하나를 변환 수만큼의 행으로 기록하고 기록한 행 수를 반환한다."""
         if label not in LABELS:
             raise ValueError(f"label은 {sorted(LABELS)} 중 하나여야 한다: {label!r}")
+        if label == "adversarial" and not attack_kind:
+            raise ValueError(
+                "adversarial 행에는 attack_kind가 필요하다. 공격 종류를 모르면 "
+                "종류별 일반화를 평가할 수 없다."
+            )
 
         for item in reading.readings:
             self._writer.writerow(
@@ -102,6 +109,7 @@ class ProbeWriter:
                     "frame_ts_ms": round(frame_ts_ms, 3),
                     "dropped_frames": dropped_frames,
                     "label": label,
+                    "attack_kind": attack_kind,
                     "transform": item.transform,
                     "cos_orig_enroll": round(item.cos_orig_enroll, 8),
                     "cos_transformed_enroll": round(item.cos_transformed_enroll, 8),

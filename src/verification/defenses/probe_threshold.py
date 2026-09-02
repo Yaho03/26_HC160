@@ -91,6 +91,42 @@ def derive_limitations(
     return limitations
 
 
+def per_attack_kind_tpr(rows, table, selected, threshold, window_frames):
+    """
+    공격 종류별 TPR. 07 7절은 공격 성공률을 단일 평균으로 숨기지 말라고 요구한다.
+
+    종류별 표본 수가 적으면 점추정만으로 판단할 수 없으므로 분자와 분모를 함께 낸다.
+    """
+    import numpy as np
+
+    from src.verification.defenses.probe_analyze import combine_clean_normalized
+
+    # sample_id 순서대로 종류를 모은다. combine 결과와 같은 순서다.
+    order, kinds = [], {}
+    for row in rows:
+        if row["label"] != "adversarial":
+            continue
+        if row["sample_id"] not in kinds:
+            kinds[row["sample_id"]] = row["attack_kind"] or "unspecified"
+            order.append(row["sample_id"])
+
+    _, adversarial_scores = combine_clean_normalized(table, selected)
+    aggregated = _aggregate(adversarial_scores, window_frames)
+
+    # 집계 윈도는 연속 표본을 묶으므로 윈도의 종류는 시작 표본의 종류로 본다.
+    result = {}
+    for index, value in enumerate(aggregated):
+        kind = kinds[order[index]] if index < len(order) else "unspecified"
+        bucket = result.setdefault(kind, {"detected": 0, "total": 0})
+        bucket["total"] += 1
+        bucket["detected"] += int(value >= threshold)
+    for kind, bucket in result.items():
+        bucket["tpr"] = (
+            bucket["detected"] / bucket["total"] if bucket["total"] else None
+        )
+    return result
+
+
 def _aggregate(scores, window_frames: int):
     """연속 프레임을 윈도로 묶어 최악값을 취한다. face_auth 게이트와 같은 규칙이다."""
     import numpy as np
@@ -213,6 +249,9 @@ def build_artifact(
             "false_negative": metrics["false_negative"],
             "false_positive": metrics["false_positive"],
             "true_negative": metrics["true_negative"],
+            "tpr_by_attack_kind": per_attack_kind_tpr(
+                rows, table, selected, threshold, window_frames
+            ),
             "clean_tar_delta_pp": (
                 round(clean_tar_delta_pp, 4) if clean_tar_delta_pp is not None else None
             ),
@@ -267,6 +306,8 @@ def main() -> int:
     print(f"  집계 {artifact['aggregation']['unit']} (윈도 {artifact['aggregation']['window_frames']}, {artifact['aggregation']['rule']})")
     print(f"  clean TAR delta {artifact['evaluation']['clean_tar_delta_pp']}%p  "
           f"예산({CLEAN_COST_BUDGET_PP}%p) 충족 {artifact['evaluation']['meets_clean_cost_budget']}")
+    for kind, bucket in sorted(artifact["evaluation"]["tpr_by_attack_kind"].items()):
+        print(f"  공격 {kind:<14} TPR {bucket['tpr']:.4f}  ({bucket['detected']}/{bucket['total']})")
     print(f"  TPR {artifact['evaluation']['tpr']}  AUC {artifact['evaluation']['roc_auc']:.4f}  adv {artifact['evaluation']['n_adversarial']}")
     print(f"\n한계 {len(artifact['limitations'])}건:")
     for item in artifact["limitations"]:

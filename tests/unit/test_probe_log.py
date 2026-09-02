@@ -89,6 +89,7 @@ class ProbeWriterTest(unittest.TestCase):
                 dropped_frames=1,
                 label="adversarial",
                 reading=_reading(offset=-0.30),
+                attack_kind="pgd",
             )
 
         rows = list(csv.DictReader(self.path.open()))
@@ -97,6 +98,19 @@ class ProbeWriterTest(unittest.TestCase):
         self.assertEqual(
             {row["label"] for row in frame_seven}, {"clean", "adversarial"}
         )
+
+    def test_adversarial_row_requires_an_attack_kind(self):
+        """공격 종류를 모르면 종류별 일반화를 평가할 수 없다."""
+        with ProbeWriter(self.path, session_id="s1", subject_id="p01") as writer:
+            with self.assertRaises(ValueError):
+                writer.write_sample(
+                    sample_id="f000_adv",
+                    frame_idx=0,
+                    frame_ts_ms=0.0,
+                    dropped_frames=0,
+                    label="adversarial",
+                    reading=_reading(),
+                )
 
     def test_rejects_label_outside_the_declared_set(self):
         with ProbeWriter(self.path, session_id="s1", subject_id="p01") as writer:

@@ -256,10 +256,32 @@ clean 표본 수가 `target_fpr * n < 1`이면 임계값을 만들지 않고 예
 `limitations`는 사이드카에서 자동 도출한다. 피험자 수, 세션 수, 공격 종류 수를 세고
 adaptive attack과 clean TAR delta 미측정을 항상 명시한다. 사람이 적기를 기다리지 않는다.
 
+### D8. 한 세션에서 여러 공격을 함께 모은다
+
+단일 공격 종류로 산출한 임계값은 그 공격의 지문을 외운 것과 구별되지 않는다. 촬영은
+사람 시간이 들어 되돌리기가 가장 비싸므로, 공격 기회마다 종류를 번갈아 써서 한 세션이
+여러 공격을 덮게 한다.
+
+| 종류 | 파라미터 | 목적 |
+|---|---|---|
+| `pgd` | epsilon, steps, step_size | 표준 반복 공격 |
+| `fgsm` | 1스텝, step_size = epsilon | perturbation 구조가 PGD와 달라 squeeze 반응도 다르다 |
+| `pgd_low_eps` | epsilon x 0.25 | 더 작은 예산. 탐지가 어려운 쪽 경계 |
+
+모든 종류는 같은 PGD 생성기를 파라미터만 바꿔 호출한다. 별도 구현을 두면 전처리와
+정규화가 어긋날 수 있다. 공격 파라미터는 촬영 시작 전에 검증한다. 촬영을 다 하고
+실패하면 사람 시간을 버린다.
+
+CSV의 `attack_kind` 컬럼과 artifact의 `evaluation.tpr_by_attack_kind`가 종류별 결과를
+분리한다. `07_DEFENSE_AND_DETECTION_SPEC.md` 7절은 공격 성공률을 단일 평균으로 숨기지
+말 것을 요구한다. 종류별 표본이 적을 수 있으므로 분자와 분모를 함께 낸다.
+
+`attack_kind` 컬럼이 없던 초기 세션은 `unspecified`로 표기한다. 소급 적용하지 않는다.
+
 ## 8. 이후 작업
 
 1. 표본 확대. 현재 단일 피험자·단일 세션이므로 일반화 근거가 없다.
-2. 공격 종류 확대. 현재 targeted PGD 한 종류다.
+2. 여러 공격 종류로 촬영. 도구는 준비됐으나 아직 `pgd` 단일 세션만 있다.
 3. Adaptive attack 평가. 공격자가 detector를 아는 경우의 내성.
 4. Clean TAR delta 측정. `07_DEFENSE_AND_DETECTION_SPEC.md` 7절 판정에 필요하다.
 5. 하드코딩 상수를 artifact 참조로 교체.
