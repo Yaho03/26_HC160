@@ -38,7 +38,7 @@
 | FR-205 | 구현됨 | Evidence-bound terminal decision을 개인정보 최소화 schema, immutable-by-default output과 run manifest 호환 artifact reference로 기록 |
 | EXP-201 | 대기 | Physical print/screen/replay dataset과 report 없음 |
 | EXP-202 | 부분 구현 | Synthetic insertion scenario 통과. Physical/person-switch matrix와 delay report 없음 |
-| FR-301 | 부분 구현 | Optional transform-consistency veto 존재. Clean/adaptive calibration 대기 |
+| FR-301 | 부분 구현 | 독립 optional veto 2종 존재. Transform-consistency와 template-shift가 변환·임베딩을 공유하고 각각 거부권을 갖는다. 두 게이트의 clean/adaptive calibration 대기 |
 | FR-302 | 대기 | 올바른 held-out adversarial-training 재실행 미구현 |
 | EXP-301 | 대기 | Digital/screen/print transfer 비교 없음 |
 | PERF-001 | 대기 | 명시 hardware의 FPS/drop/P95 report 없음 |

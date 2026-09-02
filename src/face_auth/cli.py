@@ -52,6 +52,8 @@ from src.face_auth.domain.types import (
 from src.face_auth.inference.face_detector import MTCNNFaceDetector
 from src.face_auth.inference.active_liveness import ActiveLivenessGate
 from src.face_auth.inference.adversarial_detector import (
+    TemplateShiftDetector,
+    TemplateShiftDetectorConfig,
     AdversarialDetectorConfig,
     TransformConsistencyDetector,
 )
@@ -459,6 +461,8 @@ def _authentication_config_sha256(args) -> str:
         "content_replay_threshold_version",
         "adversarial_threshold",
         "adversarial_threshold_version",
+        "adversarial_template_threshold",
+        "adversarial_template_threshold_version",
     )
     configuration = {name: getattr(args, name) for name in names}
     configuration["source_kind"] = "video" if args.video is not None else "camera"
@@ -828,6 +832,18 @@ def _full_pipeline(args, baseline, embedder, template_embedding):
     )
     adversarial = None
     if args.adversarial_threshold is not None:
+        # 두 detector는 서로 다른 것을 잰다. transform-consistency는 조작 흔적의
+        # 유무를, template-shift는 그 조작이 등록자로 위장하는 방향인지를 본다.
+        # template 게이트는 자체 임계값이 주어질 때만 켜진다.
+        template_detector = None
+        if args.adversarial_template_threshold is not None:
+            template_detector = TemplateShiftDetector(
+                TemplateShiftDetectorConfig(
+                    max_template_shift=args.adversarial_template_threshold,
+                    threshold_version=args.adversarial_template_threshold_version,
+                ),
+                template_embedding,
+            )
         adversarial = FeatureSqueezeInspector(
             embedder,
             TransformConsistencyDetector(
@@ -836,6 +852,7 @@ def _full_pipeline(args, baseline, embedder, template_embedding):
                     threshold_version=args.adversarial_threshold_version,
                 )
             ),
+            template_detector=template_detector,
         )
     return FullEvidencePipeline(
         baseline,
@@ -956,6 +973,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--content-replay-threshold-version", default="content-replay-v2"
     )
     full.add_argument("--adversarial-threshold", type=float)
+    full.add_argument(
+        "--adversarial-template-threshold",
+        type=float,
+        help=(
+            "등록 템플릿 기준 이동량 게이트의 임계값. 생략하면 이 게이트를 켜지 않는다. "
+            "--adversarial-threshold 와 함께 지정해야 한다"
+        ),
+    )
+    full.add_argument(
+        "--adversarial-template-threshold-version",
+        default="template-shift-unvalidated",
+    )
     full.add_argument(
         "--adversarial-threshold-version", default="feature-squeeze-unvalidated"
     )
