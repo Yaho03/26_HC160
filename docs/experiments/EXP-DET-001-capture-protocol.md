@@ -50,6 +50,10 @@ https://colab.research.google.com/github/Yaho03/26_HC160/blob/experiment/EXP-DET
 | 1 | 밝은 곳 (창가 또는 조명 켠 상태) | 기준 조건 |
 | 2 | 어두운 곳 (조명 일부만) | 조명 변화 반영 |
 
+카메라 연결부터 계측까지는 한 셀에 모여 있다. Colab의 `eval_js`는 현재 실행 중인
+셀의 출력 프레임에서 JavaScript를 평가하므로, JS 정의와 사용이 다른 셀에 있으면
+`ReferenceError`가 난다.
+
 세션당 `TARGET_FRAMES = 200`, `ATTACK_EVERY = 5`이므로 clean 200개와 adversarial
 40개가 모인다. 공격은 `pgd`, `fgsm`, `pgd_low_eps` 세 종류를 번갈아 생성한다.
 
@@ -69,7 +73,7 @@ https://colab.research.google.com/github/Yaho03/26_HC160/blob/experiment/EXP-DET
 
 ## 6. 품질 자가 검사
 
-노트북의 6.5단계가 데이터를 자동으로 검사한다. 실패가 나오면 참가자가 아직 앉아
+노트북의 4단계가 데이터를 자동으로 검사한다. 실패가 나오면 참가자가 아직 앉아
 있는 동안 다시 찍는다. 나중에 발견하면 다시 부탁해야 한다.
 
 | 검사 | 기준 | 실패 의미 |
