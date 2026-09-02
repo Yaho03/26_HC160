@@ -71,6 +71,33 @@ def get_embedding(img: Image.Image, device=None) -> torch.Tensor:
     return emb.squeeze(0).cpu()      # (512,)
 
 
+def embed_batch(images, device=None):
+    """
+    PIL Image n장 → (n, 512) L2 정규화 임베딩 행렬 (numpy)
+
+    한 번의 forward로 전부 처리한다. 변환본을 하나씩 호출하면 실시간 기록이
+    불가능하므로 계측 경로는 이 함수를 쓴다.
+    """
+    import numpy as np
+
+    model, dev = get_model(device)
+    batch = torch.cat([preprocess(image) for image in images]).to(dev)
+    with torch.no_grad():
+        embeddings = model(batch)
+    embeddings = F.normalize(embeddings, p=2, dim=1)
+    return embeddings.cpu().numpy().astype(np.float64)
+
+
+class FaceNetBatchEmbedder:
+    """squeeze_probe.BatchEmbedder 계약의 FaceNet 구현."""
+
+    def __init__(self, device=None) -> None:
+        self.device = device
+
+    def embed_batch(self, images):
+        return embed_batch(images, self.device)
+
+
 def get_embedding_from_path(path: str, device=None) -> torch.Tensor:
     """파일 경로에서 바로 임베딩을 추출한다."""
     return get_embedding(Image.open(path), device)

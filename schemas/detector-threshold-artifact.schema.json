@@ -1,0 +1,334 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "detector-threshold-artifact.schema.json",
+  "title": "Detector Threshold Artifact",
+  "description": "적대적 입력 detector의 operating threshold. verification threshold와 분모가 다르므로 threshold-artifact.schema.json을 재사용하지 않는다. verification은 genuine/impostor 쌍에서 FAR/TAR을 재고, detector는 clean/adversarial 표본에서 FPR/TPR을 잰다. 09_EVALUATION_METRICS.md 3절과 4절, 07_DEFENSE_AND_DETECTION_SPEC.md 6절을 따른다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "detector_threshold_artifact_id",
+    "detector_id",
+    "feature",
+    "score_direction",
+    "decision_rule",
+    "threshold",
+    "selection_method",
+    "target_fpr",
+    "model",
+    "transforms",
+    "calibration",
+    "evaluation",
+    "created_at",
+    "aggregation"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "detector_threshold_artifact_id": {
+      "type": "string"
+    },
+    "detector_id": {
+      "type": "string",
+      "description": "measure 이름. self_consistency 또는 template_shift, 결합이면 combined."
+    },
+    "feature": {
+      "type": "object",
+      "description": "임계값이 적용되는 특징. 결합이면 구성 특징을 모두 나열한다.",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "members"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "single",
+            "combined"
+          ]
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transform",
+              "measure"
+            ],
+            "properties": {
+              "transform": {
+                "type": "string"
+              },
+              "measure": {
+                "enum": [
+                  "self_consistency",
+                  "template_shift"
+                ]
+              }
+            }
+          }
+        },
+        "combination_rule": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "결합 방식. clean 통계로만 정규화해야 하며 공격 라벨로 가중치를 학습하지 않는다."
+        },
+        "normalization": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "특징별 clean 평균과 표준편차. 재현에 필요하다."
+        }
+      }
+    },
+    "score_direction": {
+      "enum": [
+        "higher_is_adversarial"
+      ],
+      "description": "두 measure 모두 값이 클수록 적대적 의심이 크다."
+    },
+    "decision_rule": {
+      "type": "string",
+      "description": "예: score >= threshold 이면 hit"
+    },
+    "threshold": {
+      "type": "number"
+    },
+    "selection_method": {
+      "enum": [
+        "target_fpr"
+      ],
+      "description": "clean 표본만으로 목표 FPR을 넘지 않는 가장 낮은 관측값을 고른다."
+    },
+    "target_fpr": {
+      "type": "number"
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "pretrained",
+        "weights_sha256",
+        "preprocess"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pretrained": {
+          "type": "string"
+        },
+        "weights_file": {
+          "type": "string"
+        },
+        "weights_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "preprocess": {
+          "type": "string"
+        }
+      }
+    },
+    "transforms": {
+      "type": "object",
+      "description": "변환 이름과 파라미터. 변환이 바뀌면 임계값을 재산출한다."
+    },
+    "calibration": {
+      "type": "object",
+      "description": "임계값 산출에 쓴 데이터. clean 표본만 들어간다.",
+      "additionalProperties": false,
+      "required": [
+        "session_ids",
+        "probe_csv_sha256",
+        "n_clean",
+        "achieved_fpr"
+      ],
+      "properties": {
+        "session_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "subject_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "probe_csv_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "n_clean": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "clean 원본 표본 수(프레임 단위). 임계값은 n_clean_windows로 정한다."
+        },
+        "achieved_fpr": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "분모가 0이면 null. 0으로 대체하지 않는다."
+        },
+        "jpeg_headroom_q75": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "JPEG 계열 변환의 해석에 필요하다. 0에 가까우면 입력이 이미 JPEG 압축된 상태다."
+        },
+        "n_clean_windows": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "세션 단위 집계 후의 clean 표본 수. 임계값은 이 표본으로 정한다."
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "description": "adversarial 표본으로 잰 성능. 임계값 선택에는 쓰이지 않았다.",
+      "additionalProperties": false,
+      "required": [
+        "n_adversarial",
+        "attack_kinds",
+        "tpr",
+        "roc_auc"
+      ],
+      "properties": {
+        "n_adversarial": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "평가 표본 수. aggregation.unit이 session이면 윈도 수이며 프레임 수가 아니다."
+        },
+        "attack_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "평가에 쓴 공격 종류. 한 종류뿐이면 일반화를 주장할 수 없다."
+        },
+        "tpr": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fpr": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "precision": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recall": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "roc_auc": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "true_positive": {
+          "type": "integer"
+        },
+        "false_negative": {
+          "type": "integer"
+        },
+        "false_positive": {
+          "type": "integer"
+        },
+        "true_negative": {
+          "type": "integer"
+        },
+        "clean_tar_delta_pp": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "이 detector를 veto로 켰을 때 clean TAR 감소분(percentage point). 07_DEFENSE_AND_DETECTION_SPEC.md 7절 기준은 2%p 이하다."
+        },
+        "meets_clean_cost_budget": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "07 7절의 clean TAR 예산을 만족하는지. 판정 근거를 숨기지 않기 위해 명시한다."
+        },
+        "tpr_by_attack_kind": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "공격 종류별 TPR과 분자·분모. 07_DEFENSE_AND_DETECTION_SPEC.md 7절은 공격 성공률을 단일 평균으로 숨기지 말 것을 요구한다. attack_kind 컬럼이 없던 초기 세션은 unspecified로 표기한다."
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "검증되지 않은 조건. adaptive attack 미평가, 단일 공격 종류, 단일 피험자 등."
+    },
+    "created_by_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "aggregation": {
+      "type": "object",
+      "description": "임계값이 적용되는 단위. 집계 방식이 없으면 같은 임계값이 프레임 단위로도 세션 단위로도 해석되어 실현 FPR이 달라진다. score function의 일부로 본다.",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "window_frames",
+        "rule"
+      ],
+      "properties": {
+        "unit": {
+          "enum": [
+            "frame",
+            "session"
+          ],
+          "description": "frame이면 프레임 하나의 점수에 임계값을 적용한다. session이면 window_frames개를 rule로 묶은 뒤 적용한다."
+        },
+        "window_frames": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "세션 단위일 때 묶는 프레임 수. face_auth FeatureSqueezeConfig.max_frames와 일치해야 한다."
+        },
+        "rule": {
+          "enum": [
+            "max"
+          ],
+          "description": "현재 face_auth 게이트는 윈도 내 최악값을 쓴다."
+        }
+      }
+    }
+  }
+}
