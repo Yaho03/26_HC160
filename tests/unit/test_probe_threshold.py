@@ -311,3 +311,58 @@ class AsrLimitationTest(unittest.TestCase):
             [_sidecar()], subjects={"p01"}, sessions={"s1"}, asr_reduction=None
         )
         self.assertTrue(any("Conditional ASR" in i for i in limitations))
+
+
+class AttackKindCountingTest(unittest.TestCase):
+    """사이드카 형식이 두 가지다. 구식만 읽으면 공격 종류를 잘못 센다."""
+
+    def test_counts_kinds_from_the_plural_field(self):
+        sidecar = _sidecar(attack={"kinds": ["pgd", "fgsm", "pgd_low_eps"]})
+        limitations = derive_limitations([sidecar], subjects={"p01"}, sessions={"s1"})
+
+        self.assertFalse(any("단일 공격 종류" in item for item in limitations))
+
+    def test_counts_kinds_from_the_legacy_singular_field(self):
+        sidecar = _sidecar(attack={"kind": "pgd_targeted_enroll"})
+        limitations = derive_limitations([sidecar], subjects={"p01"}, sessions={"s1"})
+
+        self.assertTrue(any("단일 공격 종류" in item for item in limitations))
+
+    def test_mixed_sidecar_formats_are_combined(self):
+        old = _sidecar(attack={"kind": "pgd_targeted_enroll"})
+        new = _sidecar(attack={"kinds": ["pgd", "fgsm"]})
+        limitations = derive_limitations(
+            [old, new], subjects={"p01"}, sessions={"s1", "s2"}
+        )
+
+        self.assertFalse(any("단일 공격 종류" in item for item in limitations))
+
+
+class AdaptiveLimitationTest(unittest.TestCase):
+    """BPDA로 평가했는데 미평가라고 적으면 안 된다. 결과를 적어야 한다."""
+
+    def test_unevaluated_adaptive_is_listed_as_unevaluated(self):
+        limitations = derive_limitations([_sidecar()], subjects={"p01"}, sessions={"s1"})
+        self.assertTrue(any("Adaptive attack을 평가하지 않았다" in i for i in limitations))
+
+    def test_failed_adaptive_is_listed_as_a_result(self):
+        limitations = derive_limitations(
+            [_sidecar()],
+            subjects={"p01"},
+            sessions={"s1"},
+            adaptive_detection_rate=0.0,
+        )
+        joined = " ".join(limitations)
+
+        self.assertNotIn("Adaptive attack을 평가하지 않았다", joined)
+        self.assertIn("0.0%", joined)
+
+    def test_surviving_adaptive_is_still_reported(self):
+        """뚫리지 않아도 어떤 공격을 평가했는지 남긴다."""
+        limitations = derive_limitations(
+            [_sidecar()],
+            subjects={"p01"},
+            sessions={"s1"},
+            adaptive_detection_rate=1.0,
+        )
+        self.assertTrue(any("Adaptive" in item for item in limitations))

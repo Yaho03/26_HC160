@@ -125,6 +125,24 @@ def load_probe_rows(path) -> list[dict]:
     return rows
 
 
+def session_labels(rows, label: str) -> list[str]:
+    """
+    feature_table이 값을 모으는 것과 같은 순서로 세션 라벨을 모은다.
+
+    집계가 세션 경계를 넘지 않게 하려면 값과 세션이 같은 순서로 나열돼야 한다.
+    """
+    first_transform = None
+    labels = []
+    for row in rows:
+        if row["label"] != label:
+            continue
+        if first_transform is None:
+            first_transform = row["transform"]
+        if row["transform"] == first_transform:
+            labels.append(row["session_id"])
+    return labels
+
+
 def feature_table(rows) -> dict:
     """(변환, 측정량) -> {clean: [...], adversarial: [...]}"""
     table: dict = defaultdict(lambda: {"clean": [], "adversarial": []})

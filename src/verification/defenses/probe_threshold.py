@@ -29,6 +29,7 @@ from src.verification.defenses.conditional_asr import (
 )
 from src.verification.defenses.probe_analyze import (
     MEASURES,
+    session_labels,
     combine_clean_normalized,
     detector_metrics,
     feature_table,
@@ -62,6 +63,7 @@ def derive_limitations(
     sessions,
     clean_tar_delta_pp: float | None = None,
     asr_reduction: float | None = None,
+    adaptive_detection_rate: float | None = None,
 ) -> list[str]:
     """검증되지 않은 조건을 자동으로 남긴다. 사람이 적기를 기다리지 않는다."""
     limitations = []
@@ -73,20 +75,30 @@ def derive_limitations(
         limitations.append(
             f"단일 세션({len(sessions)}개)으로 산출했다. 조명과 기기 변화를 반영하지 못한다."
         )
-    attack_kinds = {
-        sidecar.get("attack", {}).get("kind")
-        for sidecar in sidecars
-        if sidecar.get("attack", {}).get("kind")
-    }
+    # 사이드카 형식이 두 가지다. 구식은 attack.kind(단수), 신식은 attack.kinds(복수).
+    # 구식만 읽으면 여러 공격을 모은 세션을 단일 종류로 잘못 센다.
+    attack_kinds = set()
+    for sidecar in sidecars:
+        attack = sidecar.get("attack", {})
+        attack_kinds.update(attack.get("kinds") or [])
+        if attack.get("kind"):
+            attack_kinds.add(attack["kind"])
     if len(attack_kinds) < 2:
         limitations.append(
             f"단일 공격 종류({', '.join(sorted(attack_kinds)) or '미상'})만 평가했다. "
             "다른 공격으로의 일반화 근거가 없다."
         )
-    limitations.append(
-        "Adaptive attack을 평가하지 않았다. 공격자가 이 detector를 알고 있는 경우의 "
-        "내성은 측정되지 않았다."
-    )
+    if adaptive_detection_rate is None:
+        limitations.append(
+            "Adaptive attack을 평가하지 않았다. 공격자가 이 detector를 알고 있는 경우의 "
+            "내성은 측정되지 않았다."
+        )
+    else:
+        limitations.append(
+            f"Adaptive attack(BPDA)에서 탐지율이 {adaptive_detection_rate:.1%}였다. "
+            "위 판정은 공격자가 detector를 모른다는 조건에서만 성립한다. "
+            "experiments/EXP-DET-001-camera-squeeze-probe.md 12절 참조."
+        )
     if clean_tar_delta_pp is None:
         limitations.append(
             "Clean 인증 성능에 미치는 영향(clean TAR delta)을 측정하지 않았다. "
@@ -131,12 +143,15 @@ def per_attack_kind_tpr(rows, table, selected, threshold, window_frames):
     for row in rows:
         if row["label"] != "adversarial":
             continue
-        if row["sample_id"] not in kinds:
-            kinds[row["sample_id"]] = row["attack_kind"] or "unspecified"
-            order.append(row["sample_id"])
+        key = sample_key(row)
+        if key not in kinds:
+            kinds[key] = row["attack_kind"] or "unspecified"
+            order.append(key)
 
     _, adversarial_scores = combine_clean_normalized(table, selected)
-    aggregated = _aggregate(adversarial_scores, window_frames)
+    aggregated = aggregate_by_session(
+        adversarial_scores, session_labels(rows, "adversarial"), window_frames
+    )
 
     # 집계 윈도는 연속 표본을 묶으므로 윈도의 종류는 시작 표본의 종류로 본다.
     result = {}
@@ -150,6 +165,40 @@ def per_attack_kind_tpr(rows, table, selected, threshold, window_frames):
             bucket["detected"] / bucket["total"] if bucket["total"] else None
         )
     return result
+
+
+def sample_key(row) -> tuple[str, str]:
+    """
+    표본 식별자. sample_id는 세션 안에서만 고유하므로 session_id와 함께 써야 한다.
+    계측 도구가 프레임 번호로 sample_id를 만들기 때문에 세션마다 같은 값이 나온다.
+    """
+    return (row["session_id"], row["sample_id"])
+
+
+def aggregate_by_session(values, sessions, window_frames: int):
+    """
+    세션별로 나눠 집계한 뒤 이어 붙인다.
+
+    세션이 다르면 조명도 시점도 캡처 경로도 다르다. 경계를 넘는 윈도는 서로 다른
+    조건의 프레임을 한 판정 단위로 묶게 되므로 만들지 않는다. 윈도를 채우지 못하는
+    짧은 세션은 집계 단위를 만들 수 없으므로 빠진다.
+    """
+    import numpy as np
+
+    values = np.asarray(values, dtype=float)
+    sessions = list(sessions)
+    if values.size != len(sessions):
+        raise ValueError("값과 세션 라벨의 길이가 다르다")
+
+    chunks = []
+    start = 0
+    for index in range(1, len(sessions) + 1):
+        if index == len(sessions) or sessions[index] != sessions[start]:
+            chunk = values[start:index]
+            if chunk.size >= window_frames:
+                chunks.append(_aggregate(chunk, window_frames))
+            start = index
+    return np.concatenate(chunks) if chunks else np.asarray([], dtype=float)
 
 
 def _aggregate(scores, window_frames: int):
@@ -172,6 +221,7 @@ def build_artifact(
     top_k: int = 6,
     window_frames: int = 3,
     identity_threshold: float | None = None,
+    adaptive_detection_rate: float | None = None,
     artifact_id: str | None = None,
 ) -> dict:
     probe_csv = Path(probe_csv)
@@ -196,8 +246,13 @@ def build_artifact(
     # face_auth 게이트는 최근 window_frames개 중 최악값을 쓴다. 프레임 단위로 정한
     # 임계값을 세션에 그대로 쓰면 실현 FPR이 윈도 크기만큼 배가된다. 적용 단위와
     # 같은 단위로 캘리브레이션한다.
-    clean_windows = _aggregate(clean_scores, window_frames)
-    adversarial_windows = _aggregate(adversarial_scores, window_frames)
+    # 집계는 세션 경계를 넘지 않는다. 값과 세션 라벨의 순서가 같아야 한다.
+    clean_sessions = session_labels(rows, "clean")
+    adversarial_sessions = session_labels(rows, "adversarial")
+    clean_windows = aggregate_by_session(clean_scores, clean_sessions, window_frames)
+    adversarial_windows = aggregate_by_session(
+        adversarial_scores, adversarial_sessions, window_frames
+    )
 
     threshold = threshold_at_fpr(clean_windows, target_fpr)
     metrics = detector_metrics(
@@ -211,14 +266,22 @@ def build_artifact(
     # 기준 중 conditional ASR 감소를 판정하려면 이 값이 필요하다.
     defense_comparison = None
     if identity_threshold is not None:
+        # sample_id는 세션 안에서만 고유하다. session_id와 함께 키로 쓴다.
         sims = {}
+        order = []
         for row in rows:
-            sims.setdefault(row["sample_id"], (row["label"], float(row["cos_orig_enroll"])))
-        clean_sim = _aggregate(
-            np.asarray([v for _, (l, v) in sims.items() if l == "clean"], float), window_frames
+            key = sample_key(row)
+            if key not in sims:
+                sims[key] = (row["label"], float(row["cos_orig_enroll"]))
+                order.append(key)
+        clean_sim = aggregate_by_session(
+            [sims[k][1] for k in order if sims[k][0] == "clean"],
+            [k[0] for k in order if sims[k][0] == "clean"],
+            window_frames,
         )
-        adversarial_sim = _aggregate(
-            np.asarray([v for _, (l, v) in sims.items() if l == "adversarial"], float),
+        adversarial_sim = aggregate_by_session(
+            [sims[k][1] for k in order if sims[k][0] == "adversarial"],
+            [k[0] for k in order if sims[k][0] == "adversarial"],
             window_frames,
         )
         try:
@@ -331,6 +394,7 @@ def build_artifact(
                 if defense_comparison
                 else None
             ),
+            adaptive_detection_rate=adaptive_detection_rate,
         ),
         "created_by_run_id": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -355,6 +419,12 @@ def main() -> int:
         default=None,
         help="신원 임계값. 주면 07 7절의 conditional ASR 감소와 clean TAR delta를 판정한다",
     )
+    parser.add_argument(
+        "--adaptive-detection-rate",
+        type=float,
+        default=None,
+        help="adaptive_attack 평가에서 나온 최저 탐지율. 주면 limitations에 결과로 기록한다",
+    )
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -366,6 +436,7 @@ def main() -> int:
         top_k=args.top_k,
         window_frames=args.window_frames,
         identity_threshold=args.identity_threshold,
+        adaptive_detection_rate=args.adaptive_detection_rate,
     )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(
