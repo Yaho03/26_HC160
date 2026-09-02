@@ -4,7 +4,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from src.contracts.validation import check_schema_shape
 from src.verification.defenses.probe_log import PROBE_COLUMNS
+try:  # CI는 unittest로 돌고 jsonschema를 잠금 의존성에 두지 않는다.
+    import jsonschema as _jsonschema  # noqa: F401
+
+    _HAS_JSONSCHEMA = True
+except ImportError:
+    _HAS_JSONSCHEMA = False
+
 from src.verification.defenses.probe_threshold import (
     InsufficientCleanSamplesError,
     build_artifact,
@@ -106,17 +114,39 @@ class BuildArtifactTest(unittest.TestCase):
 class SchemaConformanceTest(unittest.TestCase):
     """생성기와 스키마가 어긋나면 여기서 잡힌다."""
 
-    def test_generated_artifact_validates_against_the_schema(self):
-        import jsonschema
-
-        schema = json.loads(
-            Path("schemas/detector-threshold-artifact.schema.json").read_text(encoding="utf-8")
+    def _schema(self):
+        root = Path(__file__).resolve().parents[2] / "schemas"
+        return json.loads(
+            (root / "detector-threshold-artifact.schema.json").read_text(encoding="utf-8")
         )
+
+    def _artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             probe = _write_probe(Path(directory) / "probe.csv", n_clean=300, n_adversarial=60)
-            artifact = build_artifact(probe, [_sidecar()], target_fpr=0.01, top_k=2)
+            return build_artifact(probe, [_sidecar()], target_fpr=0.01, top_k=2)
 
-        jsonschema.validate(artifact, schema)
+    def test_generated_artifact_matches_the_schema_shape(self):
+        """저장소는 jsonschema를 잠금 의존성에 두지 않는다. 구조 검사는 어디서나 돈다."""
+        check_schema_shape(self._artifact(), self._schema())
+
+    @unittest.skipUnless(_HAS_JSONSCHEMA, "jsonschema가 설치돼 있지 않다")
+    def test_generated_artifact_validates_with_jsonschema_when_available(self):
+        import jsonschema
+
+        jsonschema.validate(self._artifact(), self._schema())
+
+    def test_shape_check_rejects_a_missing_required_field(self):
+        """검사기가 실제로 위반을 잡는지 확인한다. 통과만 보면 무의미하다."""
+        artifact = self._artifact()
+        del artifact["threshold"]
+        with self.assertRaises(ValueError):
+            check_schema_shape(artifact, self._schema())
+
+    def test_shape_check_rejects_an_unknown_field(self):
+        artifact = self._artifact()
+        artifact["unexpected"] = 1
+        with self.assertRaises(ValueError):
+            check_schema_shape(artifact, self._schema())
 
     def test_limitations_survive_into_the_artifact(self):
         with tempfile.TemporaryDirectory() as directory:

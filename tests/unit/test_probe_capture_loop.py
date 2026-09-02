@@ -4,7 +4,9 @@
 NameError가 한 번 통과한 적이 있다.
 """
 
+import contextlib
 import csv
+import io
 import json
 import tempfile
 import unittest
@@ -69,19 +71,21 @@ class CaptureSessionLoopTest(unittest.TestCase):
                  mock.patch.object(module, "get_embedding", lambda img, device=None: __import__("torch").ones(8) / (8 ** 0.5)), \
                  mock.patch.object(module, "run_attack", lambda kind, crop, emb, cfg, **kw: (crop, 0.9)), \
                  mock.patch.object(module, "_weights_sha256", lambda: "0" * 64):
-                csv_path, sidecar_path = module.capture_session(
-                    subject_id="p01",
-                    frames=frames,
-                    attack_every=attack_every,
-                    out_dir=Path(directory),
-                    camera_index=0,
-                    enroll_img_path=None,
-                    epsilon=0.03,
-                    steps=1,
-                    step_size=0.002,
-                    no_preview=True,
-                    attack_kinds=attack_kinds,
-                )
+                # 계측 진행 출력이 CI 로그를 덮지 않게 한다.
+                with contextlib.redirect_stdout(io.StringIO()):
+                    csv_path, sidecar_path = module.capture_session(
+                        subject_id="p01",
+                        frames=frames,
+                        attack_every=attack_every,
+                        out_dir=Path(directory),
+                        camera_index=0,
+                        enroll_img_path=None,
+                        epsilon=0.03,
+                        steps=1,
+                        step_size=0.002,
+                        no_preview=True,
+                        attack_kinds=attack_kinds,
+                    )
                 rows = list(csv.DictReader(csv_path.open(encoding="utf-8")))
                 sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
         return rows, sidecar

@@ -114,3 +114,72 @@ def _bool(value: Any, field: str) -> bool:
 def _non_negative(value: Any, field: str) -> None:
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
         raise ContractError(f"{field} must be a non-negative number")
+
+
+def check_schema_shape(record: Mapping[str, Any], schema: Mapping[str, Any]) -> None:
+    """
+    JSON Schema의 구조 규칙 일부를 의존성 없이 검사한다.
+
+    저장소는 jsonschema를 잠금 의존성에 두지 않는다. 전체 검증이 필요한 곳에서는
+    jsonschema가 설치돼 있을 때 함께 돌리고, 이 함수는 어느 환경에서나 도는
+    최소 보장을 맡는다.
+
+    검사 범위는 required, additionalProperties, enum, 기본 type, 중첩 object다.
+    pattern, minimum, oneOf 등은 검사하지 않으므로 전체 검증을 대체하지 않는다.
+    """
+    _check_node(record, schema, "")
+
+
+_JSON_TYPES = {
+    "object": dict,
+    "array": (list, tuple),
+    "string": str,
+    "integer": int,
+    "number": (int, float),
+    "boolean": bool,
+}
+
+
+def _type_matches(value: Any, expected) -> bool:
+    names = expected if isinstance(expected, list) else [expected]
+    for name in names:
+        if name == "null":
+            if value is None:
+                return True
+            continue
+        if name == "integer" and isinstance(value, bool):
+            continue
+        if name == "number" and isinstance(value, bool):
+            continue
+        python_type = _JSON_TYPES.get(name)
+        if python_type and isinstance(value, python_type):
+            return True
+    return False
+
+
+def _check_node(record: Any, schema: Mapping[str, Any], trail: str) -> None:
+    where = trail or "<root>"
+
+    if "enum" in schema and record not in schema["enum"]:
+        raise ValueError(f"{where}: {record!r}는 허용값 {schema['enum']}에 없다")
+
+    if "type" in schema and not _type_matches(record, schema["type"]):
+        raise ValueError(f"{where}: 타입이 {schema['type']}이어야 한다 (실제 {type(record).__name__})")
+
+    if not isinstance(record, Mapping):
+        return
+
+    for field in schema.get("required", []):
+        if field not in record:
+            raise ValueError(f"{where}: 필수 필드 '{field}'가 없다")
+
+    properties = schema.get("properties", {})
+    if schema.get("additionalProperties") is False:
+        extra = sorted(set(record) - set(properties))
+        if extra:
+            raise ValueError(f"{where}: 스키마에 없는 필드 {extra}")
+
+    for field, value in record.items():
+        subschema = properties.get(field)
+        if isinstance(subschema, Mapping):
+            _check_node(value, subschema, f"{trail}.{field}" if trail else field)
