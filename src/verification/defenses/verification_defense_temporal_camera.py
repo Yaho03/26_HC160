@@ -39,11 +39,15 @@ from src.verification.defenses.verification_defense_feature_squeezing import (
 
 # ── 상수 ──────────────────────────────────────────────────────────────────────
 
+# LEGACY (ADR-003): 아래 임계값들은 model·preprocessing에 묶인 artifact가 아니라
+# 소스에 박힌 상수다. EXP-DET-001이 웹캠 표본으로 threshold artifact를 산출하면
+# 그 참조로 교체한다. 설계: docs/experiments/EXP-DET-001-camera-squeeze-probe.md
+# 계측은 이 상수를 쓰지 않는다. src/verification/defenses/probe_capture.py 참조.
 DEFAULT_THRESHOLD  = 0.47966246581077576
 FACE_SIZE          = 160
 FPS                = 15
 
-# squeezer별 임계값 (카메라 환경 캘리브레이션)
+# squeezer별 임계값 — 검증되지 않은 잠정값. 위 LEGACY 주석 참조.
 SIM_DIFF_THRESHOLDS = {
     "low_resolution": 0.40,
     "color_depth":    0.08,

@@ -8,6 +8,8 @@
 
 `run-registration-context.schema.json`은 결과 생성 전에 사람이 명시해야 하는 run/experiment/requirement ID, 환경 해시, seed, 입력·출력 artifact ID와 재현 명령을 고정한다. 인증 및 PAD CLI는 이 컨텍스트가 제공될 때 실제 Git 상태, 실행 시각, 설정 해시, 결과 파일 해시와 크기를 결합해 artifact reference와 완료된 run manifest를 자동 생성한다.
 
+`detector-threshold-artifact.schema.json`은 적대적 입력 detector의 operating threshold를 고정한다. `threshold-artifact.schema.json`을 재사용하지 않는다. verification threshold는 genuine/impostor 쌍에서 FAR/TAR을 재고 detector threshold는 clean/adversarial 표본에서 FPR/TPR을 재므로 분모가 다르다. 두 계약을 합치면 `09_EVALUATION_METRICS.md` 3절이 금지하는 label 혼용이 된다. 임계값 산출에 쓴 clean 표본과 성능 측정에 쓴 adversarial 표본을 `calibration`과 `evaluation`으로 분리해 기록하고, 검증되지 않은 조건은 `limitations`에 남긴다.
+
 `verification-score-export.schema.json`은 FaceNet 점수 JSONL의 해시와 model/preprocessing/dataset/pair manifest/Git provenance를 결합한다. Threshold와 clean report는 이 export metadata 해시를 다시 참조한다.
 
 - 경로는 저장소 또는 실행 디렉터리 기준 상대 경로를 사용한다.
