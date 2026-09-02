@@ -112,3 +112,27 @@ class EotAttackTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BpdaModeTest(unittest.TestCase):
+    def test_bpda_mode_is_declared(self):
+        self.assertTrue(resolve_mode("bpda")["uses_defense"])
+
+    def test_bpda_accepts_non_differentiable_transforms(self):
+        """EOT가 거부하던 변환을 BPDA는 받아야 한다. 그게 요점이다."""
+        from src.verification.defenses.adaptive_attack import run_eot_attack
+
+        crop = Image.fromarray(
+            np.random.default_rng(0).integers(0, 256, (160, 160, 3), dtype=np.uint8)
+        )
+        target = torch.nn.functional.normalize(torch.randn(1, 512), dim=1).squeeze(0)
+
+        with self.assertRaises(KeyError):
+            run_eot_attack(crop, target, AdaptiveAttackConfig(steps=1),
+                           transforms=["median3"], use_bpda=False)
+
+        adversarial, _ = run_eot_attack(
+            crop, target, AdaptiveAttackConfig(steps=1),
+            transforms=["median3"], use_bpda=True,
+        )
+        self.assertEqual(adversarial.size, crop.size)

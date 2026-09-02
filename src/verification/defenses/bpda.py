@@ -1,0 +1,58 @@
+"""
+BPDA — Backward Pass Differentiable Approximation
+
+EOT는 미분 가능한 변환만 공격 루프에 넣을 수 있다. detector가 쓰는 특징의 대부분이
+JPEG와 median filter에서 나오므로, EOT만으로는 점수의 대부분을 건드리지 못한다.
+
+BPDA는 forward에 진짜 변환을 쓰고 backward만 항등함수로 근사한다.
+
+    y = x + (T(x).detach() - x.detach())
+
+forward에서 y는 정확히 T(x)이고, backward에서 dy/dx는 항등이다. 근사가 backward에만
+적용되므로 공격자가 보는 detector 출력은 방어가 실제로 계산하는 값과 같다.
+
+이 모듈은 방어의 강건성이 미분 불가능성에 의존하는지 확인하기 위한 것이다.
+07_DEFENSE_AND_DETECTION_SPEC.md 7.1절이 이 우회를 명시적으로 지목한다.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import torch
+from PIL import Image
+
+from src.verification.defenses.squeeze_probe import TRANSFORMS
+
+# blur와 lowres는 미분 가능하므로 근사가 필요 없다. adaptive_attack이 직접 다룬다.
+_NON_DIFFERENTIABLE = ("jpeg_q75", "jpeg_q50", "jpeg_q30", "jpeg_q10", "median3", "median5", "median7")
+
+
+def supported_transforms() -> tuple[str, ...]:
+    """BPDA가 필요한 변환. 미분 가능한 것은 여기 없다."""
+    return tuple(name for name in _NON_DIFFERENTIABLE if name in TRANSFORMS)
+
+
+def _to_pil(tensor: torch.Tensor) -> Image.Image:
+    """정규화 공간 (1,3,H,W) → PIL. 실제 파이프라인과 같은 uint8 왕복을 거친다."""
+    array = tensor.detach().squeeze(0).permute(1, 2, 0).cpu().numpy()
+    array = (array * 128.0 + 127.5).clip(0, 255).astype(np.uint8)
+    return Image.fromarray(array)
+
+
+def _to_tensor(image: Image.Image, device) -> torch.Tensor:
+    array = np.asarray(image.convert("RGB"), dtype=np.float32)
+    array = (array - 127.5) / 128.0
+    return torch.from_numpy(array).permute(2, 0, 1).unsqueeze(0).to(device)
+
+
+def bpda_transform(tensor: torch.Tensor, name: str) -> torch.Tensor:
+    """
+    forward는 실제 변환, backward는 항등 근사.
+
+    detach된 차이를 더하므로 값은 T(x)와 같고 gradient는 x로 그대로 흐른다.
+    """
+    if name not in TRANSFORMS:
+        raise KeyError(f"알 수 없는 변환 {name!r}. 사용 가능: {sorted(TRANSFORMS)}")
+
+    transformed = _to_tensor(TRANSFORMS[name](_to_pil(tensor)), tensor.device)
+    return tensor + (transformed.detach() - tensor.detach())

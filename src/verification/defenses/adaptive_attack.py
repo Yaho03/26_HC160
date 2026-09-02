@@ -18,6 +18,7 @@ EOT는 변환을 공격 루프 안에 넣어 두 목표를 함께 최적화한�
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
@@ -37,7 +38,11 @@ _DIFFERENTIABLE = {
 
 MODES = {
     "oblivious": {"uses_defense": False, "note": "방어를 모르는 표준 PGD"},
-    "eot": {"uses_defense": True, "note": "변환을 루프에 넣어 탐지를 회피"},
+    "eot": {"uses_defense": True, "note": "미분 가능한 변환만 루프에 넣어 탐지를 회피"},
+    "bpda": {
+        "uses_defense": True,
+        "note": "미분 불가 변환의 backward를 항등으로 근사해 전부 최적화",
+    },
 }
 
 
@@ -110,15 +115,25 @@ def run_eot_attack(
     config: AdaptiveAttackConfig,
     *,
     transforms,
+    use_bpda: bool = False,
     device=None,
 ) -> tuple[Image.Image, float]:
     """
     등록자 유사도를 높이면서 변환 전후 임베딩 차이를 작게 유지한다.
 
     두 번째 항이 탐지 회피다. consistency_weight가 0이면 기존 PGD와 같다.
+
+    use_bpda가 참이면 미분 불가한 변환도 루프에 넣는다. backward만 항등으로
+    근사하므로 공격자가 보는 detector 출력은 방어가 실제로 계산하는 값과 같다.
     """
-    names = build_eot_transforms(transforms)
-    specs = [_DIFFERENTIABLE[name] for name in names]
+    if use_bpda:
+        from src.verification.defenses.bpda import bpda_transform
+
+        names = list(transforms)
+        specs = None
+    else:
+        names = build_eot_transforms(transforms)
+        specs = [_DIFFERENTIABLE[name] for name in names]
 
     model, dev = get_model(device)
     target = target_embedding.to(dev).unsqueeze(0)
@@ -134,13 +149,18 @@ def run_eot_attack(
 
         consistency_loss = torch.zeros((), device=dev)
         if config.consistency_weight > 0:
-            for spec in specs:
-                squeezed = F.normalize(model(_apply(adversarial, spec)), p=2, dim=1)
+            variants = (
+                [bpda_transform(adversarial, name) for name in names]
+                if use_bpda
+                else [_apply(adversarial, spec) for spec in specs]
+            )
+            for variant in variants:
+                squeezed = F.normalize(model(variant), p=2, dim=1)
                 # detector가 보는 값. 작을수록 탐지되지 않는다.
                 consistency_loss = consistency_loss + (
                     1.0 - F.cosine_similarity(embedding, squeezed).mean()
                 )
-            consistency_loss = consistency_loss / len(specs)
+            consistency_loss = consistency_loss / len(variants)
 
         loss = identity_loss + config.consistency_weight * consistency_loss
         gradient = torch.autograd.grad(loss, adversarial)[0]
@@ -245,6 +265,11 @@ def main() -> int:
     parser.add_argument(
         "--weights", default="0,1,5", help="쉼표로 구분한 consistency_weight 목록"
     )
+    parser.add_argument(
+        "--bpda",
+        action="store_true",
+        help="미분 불가 변환도 공격 대상에 넣는다. detector가 쓰는 변환을 그대로 쓴다",
+    )
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
 
@@ -252,16 +277,24 @@ def main() -> int:
     features, statistics, threshold = calibration_from_probe(
         args.probe, target_fpr=args.target_fpr
     )
+    # BPDA면 detector가 실제로 쓰는 변환을 그대로 공격 대상에 넣는다.
+    attack_transforms = (
+        sorted({transform for transform, _ in features})
+        if args.bpda
+        else ["blur0.5", "blur0.8", "blur1.2"]
+    )
     print(f"detector 특징 {[f'{a}|{b}' for a, b in features]}")
+    print(f"공격 대상 변환 {attack_transforms}")
     print(f"임계값 {threshold:.4f}  (목표 FPR {args.target_fpr})\n")
 
     weights = [float(w) for w in args.weights.split(",") if w.strip()]
     embedder = FaceNetBatchEmbedder()
     pairs = list(csv.DictReader((root / "attack_handoff_index.csv").open()))[: args.limit]
 
+    prefix = "bpda" if args.bpda else "eot"
     runs = {"oblivious": {"scores": [], "similarity": []}}
     for weight in weights:
-        runs[f"eot_w{weight:g}"] = {"scores": [], "similarity": []}
+        runs[f"{prefix}_w{weight:g}"] = {"scores": [], "similarity": []}
 
     for index, row in enumerate(pairs):
         source = Image.open(root / row["source_file"]).convert("RGB").resize(
@@ -286,9 +319,10 @@ def main() -> int:
                 source,
                 enroll_torch,
                 config,
-                transforms=["blur0.5", "blur0.8", "blur1.2"],
+                transforms=attack_transforms,
+                use_bpda=args.bpda,
             )
-            key = f"eot_w{weight:g}"
+            key = f"{prefix}_w{weight:g}"
             runs[key]["scores"].append(
                 detector_score(adversarial, enroll_vector, embedder, features, statistics)
             )
@@ -318,8 +352,12 @@ def main() -> int:
             f"{bypass.mean():>7.1%} {np.median(scores):>11.3f}"
         )
     print("\n둘다 = 인증 통과 + 탐지 회피 = 실제 공격 성공률")
-    print("\n주의: EOT는 미분 가능한 blur만 최적화한다. median과 JPEG 항은 손대지")
-    print("못하므로 이 결과로 adaptive robustness를 주장할 수 없다. BPDA 미평가.")
+    if args.bpda:
+        print("\nBPDA: 미분 불가 변환의 backward를 항등으로 근사했다. forward는 방어가")
+        print("실제로 계산하는 값과 같다. 근사가 완벽하지 않으므로 하한으로 본다.")
+    else:
+        print("\n주의: EOT는 미분 가능한 blur만 최적화한다. median과 JPEG 항은 손대지")
+        print("못하므로 이 결과로 adaptive robustness를 주장할 수 없다.")
 
     if args.out:
         Path(args.out).write_text(
