@@ -278,13 +278,46 @@ CSV의 `attack_kind` 컬럼과 artifact의 `evaluation.tpr_by_attack_kind`가 �
 
 `attack_kind` 컬럼이 없던 초기 세션은 `unspecified`로 표기한다. 소급 적용하지 않는다.
 
+## 7.3 방어 전후 비교
+
+`07_DEFENSE_AND_DETECTION_SPEC.md` 7절의 통과 기준은 두 가지다. conditional ASR을
+50% 이상 줄이고, 고정 threshold에서 clean TAR 감소가 2%p 이하여야 한다.
+
+```bash
+python -m src.verification.defenses.probe_threshold \
+    --probe outputs/probe/<session_id>/probe.csv \
+    --session outputs/probe/<session_id>/session.json \
+    --target-fpr 0.01 --window-frames 3 \
+    --identity-threshold 0.47966246581077576 \
+    --out outputs/probe/<session_id>/detector_threshold.json
+```
+
+`--identity-threshold`를 주면 `evaluation.defense_comparison`에 판정이 들어간다.
+`09_EVALUATION_METRICS.md` 3절의 세 지표는 분모가 다르므로 이름과 분모를 함께 기록한다.
+
+Eligible attempt는 방어 전 accept된 공격이다. 방어 전에 이미 거부된 공격을 분모에
+넣으면 방어 성능이 부풀려진다. 분모가 0이면 예외를 낸다.
+
+세션 `7b94fe4d1971` 결과다.
+
+| 기준 | 목표 | 실측 | 판정 |
+|---|---|---|---|
+| conditional ASR 감소 | 50% 이상 | 67.2% (1.000 → 0.328) | 충족 |
+| clean TAR 감소 | 2%p 이하 | 0.00%p (1.0000 → 1.0000) | 충족 |
+
+방어 전 공격 58건이 모두 성공했다. 신원 유사도 중앙값이 0.9964로 clean의 0.8909보다
+높다. 공격이 등록자보다 더 등록자에 가까운 임베딩을 만든다는 뜻이며, 방어 없이는
+이 공격을 하나도 막지 못한다.
+
+이 판정은 `07` 7절이 "잠정"이라고 명시한 연구용 기준이며 운영 보장을 뜻하지 않는다.
+남은 한계는 아래 11절을 참조한다.
+
 ## 8. 이후 작업
 
 1. 표본 확대. 현재 단일 피험자·단일 세션이므로 일반화 근거가 없다.
 2. 여러 공격 종류로 촬영. 도구는 준비됐으나 아직 `pgd` 단일 세션만 있다.
 3. Adaptive attack 평가. 공격자가 detector를 아는 경우의 내성.
-4. Clean TAR delta 측정. `07_DEFENSE_AND_DETECTION_SPEC.md` 7절 판정에 필요하다.
-5. 하드코딩 상수를 artifact 참조로 교체.
+4. 하드코딩 상수를 artifact 참조로 교체.
 
 ## 10. 집계 단위 (D7)
 

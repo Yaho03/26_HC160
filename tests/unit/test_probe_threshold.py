@@ -289,3 +289,25 @@ class LimitationHonestyTest(unittest.TestCase):
             [_sidecar()], subjects={"p01"}, sessions={"s1"}, clean_tar_delta_pp=-3.02
         )
         self.assertTrue(any("초과" in item for item in limitations))
+
+
+class AsrLimitationTest(unittest.TestCase):
+    """측정한 것을 미측정이라 적으면 한계 목록의 신뢰가 떨어진다."""
+
+    def test_measured_asr_reduction_is_not_listed_as_unmeasured(self):
+        limitations = derive_limitations(
+            [_sidecar()], subjects={"p01"}, sessions={"s1"}, asr_reduction=0.67
+        )
+        self.assertFalse(any("Conditional ASR 감소를 측정하지 않았다" in i for i in limitations))
+
+    def test_asr_below_budget_is_listed(self):
+        limitations = derive_limitations(
+            [_sidecar()], subjects={"p01"}, sessions={"s1"}, asr_reduction=0.30
+        )
+        self.assertTrue(any("미치지 못한다" in i for i in limitations))
+
+    def test_unmeasured_asr_is_listed(self):
+        limitations = derive_limitations(
+            [_sidecar()], subjects={"p01"}, sessions={"s1"}, asr_reduction=None
+        )
+        self.assertTrue(any("Conditional ASR" in i for i in limitations))

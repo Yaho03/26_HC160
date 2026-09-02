@@ -281,6 +281,13 @@
             "null"
           ],
           "description": "공격 종류별 TPR과 분자·분모. 07_DEFENSE_AND_DETECTION_SPEC.md 7절은 공격 성공률을 단일 평균으로 숨기지 말 것을 요구한다. attack_kind 컬럼이 없던 초기 세션은 unspecified로 표기한다."
+        },
+        "defense_comparison": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "방어 전후 인증 결과 비교. 09_EVALUATION_METRICS.md 3절의 conditional/population 지표는 분모가 다르므로 이름과 분모를 함께 기록한다. attack 블록의 eligible은 방어 전 accept된 공격 수이며, clean 블록은 방어가 정상 사용자에게 물리는 비용이다. 07_DEFENSE_AND_DETECTION_SPEC.md 7절 판정에 쓰인다."
         }
       }
     },

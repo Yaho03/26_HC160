@@ -19,6 +19,14 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
+
+from src.verification.defenses.conditional_asr import (
+    ASR_REDUCTION_BUDGET,
+    NoEligibleAttackError,
+    clean_cost,
+    conditional_defense_metrics,
+)
 from src.verification.defenses.probe_analyze import (
     MEASURES,
     combine_clean_normalized,
@@ -48,7 +56,12 @@ def _sha256(path: Path) -> str:
 
 
 def derive_limitations(
-    sidecars, *, subjects, sessions, clean_tar_delta_pp: float | None = None
+    sidecars,
+    *,
+    subjects,
+    sessions,
+    clean_tar_delta_pp: float | None = None,
+    asr_reduction: float | None = None,
 ) -> list[str]:
     """검증되지 않은 조건을 자동으로 남긴다. 사람이 적기를 기다리지 않는다."""
     limitations = []
@@ -84,10 +97,16 @@ def derive_limitations(
             f"Clean TAR 감소 {abs(clean_tar_delta_pp):.2f}%p로 "
             f"07_DEFENSE_AND_DETECTION_SPEC.md 7절 예산 {CLEAN_COST_BUDGET_PP}%p를 초과한다."
         )
-    limitations.append(
-        "Conditional ASR 감소를 측정하지 않았다. 07 7절의 나머지 통과 기준(50% 이상 감소) "
-        "판정에는 방어 전후 인증 결과 비교가 필요하다."
-    )
+    if asr_reduction is None:
+        limitations.append(
+            "Conditional ASR 감소를 측정하지 않았다. 07 7절의 나머지 통과 기준(50% 이상 감소) "
+            "판정에는 방어 전후 인증 결과 비교가 필요하다."
+        )
+    elif asr_reduction < ASR_REDUCTION_BUDGET:
+        limitations.append(
+            f"Conditional ASR 감소 {asr_reduction:.1%}로 07 7절 기준 "
+            f"{ASR_REDUCTION_BUDGET:.0%}에 미치지 못한다."
+        )
     return limitations
 
 
@@ -146,6 +165,7 @@ def build_artifact(
     target_fpr: float = 0.01,
     top_k: int = 6,
     window_frames: int = 3,
+    identity_threshold: float | None = None,
     artifact_id: str | None = None,
 ) -> dict:
     probe_csv = Path(probe_csv)
@@ -180,6 +200,37 @@ def build_artifact(
     clean_tar_delta_pp = (
         -metrics["fpr"] * 100.0 if metrics["fpr"] is not None else None
     )
+
+    # 방어 전후 인증 비교. 신원 임계값이 주어질 때만 계산한다. 07 7절의 두 통과
+    # 기준 중 conditional ASR 감소를 판정하려면 이 값이 필요하다.
+    defense_comparison = None
+    if identity_threshold is not None:
+        sims = {}
+        for row in rows:
+            sims.setdefault(row["sample_id"], (row["label"], float(row["cos_orig_enroll"])))
+        clean_sim = _aggregate(
+            np.asarray([v for _, (l, v) in sims.items() if l == "clean"], float), window_frames
+        )
+        adversarial_sim = _aggregate(
+            np.asarray([v for _, (l, v) in sims.items() if l == "adversarial"], float),
+            window_frames,
+        )
+        try:
+            attack_side = conditional_defense_metrics(
+                attack_similarity=adversarial_sim,
+                attack_detected=adversarial_windows >= threshold,
+                identity_threshold=identity_threshold,
+            )
+        except NoEligibleAttackError as error:
+            attack_side = {"error": str(error)}
+        defense_comparison = {
+            "attack": attack_side,
+            "clean": clean_cost(
+                clean_similarity=clean_sim,
+                clean_detected=clean_windows >= threshold,
+                identity_threshold=identity_threshold,
+            ),
+        }
 
     normalization = {}
     for transform, measure in selected:
@@ -252,6 +303,7 @@ def build_artifact(
             "tpr_by_attack_kind": per_attack_kind_tpr(
                 rows, table, selected, threshold, window_frames
             ),
+            "defense_comparison": defense_comparison,
             "clean_tar_delta_pp": (
                 round(clean_tar_delta_pp, 4) if clean_tar_delta_pp is not None else None
             ),
@@ -266,6 +318,11 @@ def build_artifact(
             subjects=subjects,
             sessions=sessions,
             clean_tar_delta_pp=clean_tar_delta_pp,
+            asr_reduction=(
+                defense_comparison["attack"].get("conditional_asr_reduction")
+                if defense_comparison
+                else None
+            ),
         ),
         "created_by_run_id": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -284,6 +341,12 @@ def main() -> int:
         default=3,
         help="게이트가 묶는 프레임 수. face_auth FeatureSqueezeConfig.max_frames와 맞춘다",
     )
+    parser.add_argument(
+        "--identity-threshold",
+        type=float,
+        default=None,
+        help="신원 임계값. 주면 07 7절의 conditional ASR 감소와 clean TAR delta를 판정한다",
+    )
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -294,6 +357,7 @@ def main() -> int:
         target_fpr=args.target_fpr,
         top_k=args.top_k,
         window_frames=args.window_frames,
+        identity_threshold=args.identity_threshold,
     )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(
@@ -309,6 +373,19 @@ def main() -> int:
     for kind, bucket in sorted(artifact["evaluation"]["tpr_by_attack_kind"].items()):
         print(f"  공격 {kind:<14} TPR {bucket['tpr']:.4f}  ({bucket['detected']}/{bucket['total']})")
     print(f"  TPR {artifact['evaluation']['tpr']}  AUC {artifact['evaluation']['roc_auc']:.4f}  adv {artifact['evaluation']['n_adversarial']}")
+    comparison = artifact["evaluation"].get("defense_comparison")
+    if comparison and "error" not in comparison["attack"]:
+        attack, clean = comparison["attack"], comparison["clean"]
+        print()
+        print("07 7절 잠정 통과 기준")
+        print(f"  conditional ASR {attack['conditional_asr_before_defense']:.3f} → "
+              f"{attack['conditional_asr_after_defense']:.3f} "
+              f"(감소 {attack['conditional_asr_reduction']:.1%}, 기준 50%) "
+              f"→ {'충족' if attack['meets_asr_budget'] else '미충족'}")
+        print(f"  clean TAR {clean['clean_tar_before']:.4f} → {clean['clean_tar_after']:.4f} "
+              f"({clean['clean_tar_delta_pp']:+.2f}%p, 기준 2%p) "
+              f"→ {'충족' if clean['meets_clean_budget'] else '미충족'}")
+
     print(f"\n한계 {len(artifact['limitations'])}건:")
     for item in artifact["limitations"]:
         print(f"  - {item}")
