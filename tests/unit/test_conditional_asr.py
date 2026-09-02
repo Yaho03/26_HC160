@@ -101,3 +101,45 @@ class CleanCostTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AttackModelScopeTest(unittest.TestCase):
+    """통과 판정은 어떤 공격 모델에서 성립하는지와 함께 기록해야 한다.
+
+    BPDA 평가에서 같은 방어가 conditional ASR 감소 0%를 기록했다. 공격 모델을
+    적지 않으면 artifact가 조건 없는 주장을 하게 된다.
+    """
+
+    def test_attack_model_is_recorded(self):
+        result = conditional_defense_metrics(
+            attack_similarity=[0.9] * 4,
+            attack_detected=[True, True, True, False],
+            identity_threshold=0.5,
+            attack_model="oblivious",
+        )
+        self.assertEqual(result["attack_model"], "oblivious")
+
+    def test_budget_verdict_is_scoped_to_the_attack_model(self):
+        oblivious = conditional_defense_metrics(
+            attack_similarity=[0.9] * 10,
+            attack_detected=[True] * 7 + [False] * 3,
+            identity_threshold=0.5,
+            attack_model="oblivious",
+        )
+        adaptive = conditional_defense_metrics(
+            attack_similarity=[0.9] * 10,
+            attack_detected=[False] * 10,
+            identity_threshold=0.5,
+            attack_model="bpda",
+        )
+
+        self.assertTrue(oblivious["meets_asr_budget"])
+        self.assertFalse(adaptive["meets_asr_budget"])
+        self.assertNotEqual(oblivious["attack_model"], adaptive["attack_model"])
+
+    def test_unspecified_attack_model_defaults_to_unknown(self):
+        """공격 모델을 모르면 모른다고 적는다. 비적응이라고 가정하지 않는다."""
+        result = conditional_defense_metrics(
+            attack_similarity=[0.9], attack_detected=[True], identity_threshold=0.5
+        )
+        self.assertEqual(result["attack_model"], "unspecified")

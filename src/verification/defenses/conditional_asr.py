@@ -30,12 +30,18 @@ def conditional_defense_metrics(
     attack_similarity,
     attack_detected,
     identity_threshold: float,
+    attack_model: str = "unspecified",
 ) -> dict:
     """
     Eligible attempt는 방어 전 accept된 공격이다(09 2절). 방어 전에 이미 거부된
     공격을 분모에 넣으면 방어 성능이 부풀려진다.
 
     detector가 hit이면 optional veto로 SECURITY_DENIED가 되므로 reject로 본다.
+
+    attack_model은 이 판정이 어떤 공격에서 성립하는지를 남긴다. 같은 방어가
+    비적응 공격에서 conditional ASR 감소 67%, BPDA에서 0%를 기록했다. 공격 모델
+    없이 판정만 기록하면 조건 없는 주장이 된다. 기본값은 unspecified이며
+    비적응이라고 가정하지 않는다.
     """
     similarity = np.asarray(attack_similarity, dtype=float)
     detected = np.asarray(attack_detected, dtype=bool)
@@ -59,6 +65,7 @@ def conditional_defense_metrics(
     reduction = before - after
 
     return {
+        "attack_model": attack_model,
         "identity_threshold": identity_threshold,
         "total_attempts": int(similarity.size),
         "eligible": eligible,

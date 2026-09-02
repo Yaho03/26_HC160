@@ -107,6 +107,12 @@ def derive_limitations(
             f"Conditional ASR 감소 {asr_reduction:.1%}로 07 7절 기준 "
             f"{ASR_REDUCTION_BUDGET:.0%}에 미치지 못한다."
         )
+    else:
+        limitations.append(
+            f"Conditional ASR 감소 {asr_reduction:.1%}는 detector를 모르는 공격에서만 "
+            "성립한다. BPDA 평가에서 같은 방어의 탐지율이 0%까지 떨어졌다. "
+            "experiments/EXP-DET-001-camera-squeeze-probe.md 12절 참조."
+        )
     return limitations
 
 
@@ -220,6 +226,8 @@ def build_artifact(
                 attack_similarity=adversarial_sim,
                 attack_detected=adversarial_windows >= threshold,
                 identity_threshold=identity_threshold,
+                # 계측 세션의 공격은 detector를 모른다. adaptive 결과는 별도 평가다.
+                attack_model="oblivious",
             )
         except NoEligibleAttackError as error:
             attack_side = {"error": str(error)}
