@@ -31,6 +31,9 @@ from src.verification.defenses.probe_analyze import (
 
 SCHEMA_VERSION = "detector-threshold-artifact/1.0"
 
+# 07_DEFENSE_AND_DETECTION_SPEC.md 7절: 고정 threshold에서 clean TAR 감소 2%p 이하
+CLEAN_COST_BUDGET_PP = 2.0
+
 
 class InsufficientCleanSamplesError(ValueError):
     """clean 표본 수가 목표 FPR을 만족할 수 없다."""
@@ -44,7 +47,9 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def derive_limitations(sidecars, *, subjects, sessions) -> list[str]:
+def derive_limitations(
+    sidecars, *, subjects, sessions, clean_tar_delta_pp: float | None = None
+) -> list[str]:
     """검증되지 않은 조건을 자동으로 남긴다. 사람이 적기를 기다리지 않는다."""
     limitations = []
     if len(subjects) < 2:
@@ -69,11 +74,33 @@ def derive_limitations(sidecars, *, subjects, sessions) -> list[str]:
         "Adaptive attack을 평가하지 않았다. 공격자가 이 detector를 알고 있는 경우의 "
         "내성은 측정되지 않았다."
     )
+    if clean_tar_delta_pp is None:
+        limitations.append(
+            "Clean 인증 성능에 미치는 영향(clean TAR delta)을 측정하지 않았다. "
+            "07_DEFENSE_AND_DETECTION_SPEC.md 7절 기준으로 판정할 수 없다."
+        )
+    elif abs(clean_tar_delta_pp) > CLEAN_COST_BUDGET_PP:
+        limitations.append(
+            f"Clean TAR 감소 {abs(clean_tar_delta_pp):.2f}%p로 "
+            f"07_DEFENSE_AND_DETECTION_SPEC.md 7절 예산 {CLEAN_COST_BUDGET_PP}%p를 초과한다."
+        )
     limitations.append(
-        "Clean 인증 성능에 미치는 영향(clean TAR delta)을 측정하지 않았다. "
-        "07_DEFENSE_AND_DETECTION_SPEC.md 7절 기준으로 판정할 수 없다."
+        "Conditional ASR 감소를 측정하지 않았다. 07 7절의 나머지 통과 기준(50% 이상 감소) "
+        "판정에는 방어 전후 인증 결과 비교가 필요하다."
     )
     return limitations
+
+
+def _aggregate(scores, window_frames: int):
+    """연속 프레임을 윈도로 묶어 최악값을 취한다. face_auth 게이트와 같은 규칙이다."""
+    import numpy as np
+
+    scores = np.asarray(scores, float)
+    if window_frames <= 1 or scores.size < window_frames:
+        return scores
+    return np.array(
+        [scores[i : i + window_frames].max() for i in range(scores.size - window_frames + 1)]
+    )
 
 
 def build_artifact(
@@ -82,6 +109,7 @@ def build_artifact(
     *,
     target_fpr: float = 0.01,
     top_k: int = 6,
+    window_frames: int = 3,
     artifact_id: str | None = None,
 ) -> dict:
     probe_csv = Path(probe_csv)
@@ -102,9 +130,19 @@ def build_artifact(
     )
     selected = ranked[:top_k]
     clean_scores, adversarial_scores = combine_clean_normalized(table, selected)
-    threshold = threshold_at_fpr(clean_scores, target_fpr)
+
+    # face_auth 게이트는 최근 window_frames개 중 최악값을 쓴다. 프레임 단위로 정한
+    # 임계값을 세션에 그대로 쓰면 실현 FPR이 윈도 크기만큼 배가된다. 적용 단위와
+    # 같은 단위로 캘리브레이션한다.
+    clean_windows = _aggregate(clean_scores, window_frames)
+    adversarial_windows = _aggregate(adversarial_scores, window_frames)
+
+    threshold = threshold_at_fpr(clean_windows, target_fpr)
     metrics = detector_metrics(
-        clean=clean_scores, adversarial=adversarial_scores, threshold=threshold
+        clean=clean_windows, adversarial=adversarial_windows, threshold=threshold
+    )
+    clean_tar_delta_pp = (
+        -metrics["fpr"] * 100.0 if metrics["fpr"] is not None else None
     )
 
     normalization = {}
@@ -142,6 +180,11 @@ def build_artifact(
             ),
             "normalization": normalization,
         },
+        "aggregation": {
+            "unit": "session" if window_frames > 1 else "frame",
+            "window_frames": window_frames,
+            "rule": "max",
+        },
         "score_direction": "higher_is_adversarial",
         "decision_rule": "score >= threshold 이면 hit",
         "threshold": round(float(threshold), 8),
@@ -155,6 +198,7 @@ def build_artifact(
             "probe_csv_sha256": _sha256(probe_csv),
             "n_clean": n_clean,
             "achieved_fpr": metrics["fpr"],
+            "n_clean_windows": int(len(clean_windows)),
             "jpeg_headroom_q75": first.get("jpeg_headroom_q75"),
         },
         "evaluation": {
@@ -169,8 +213,21 @@ def build_artifact(
             "false_negative": metrics["false_negative"],
             "false_positive": metrics["false_positive"],
             "true_negative": metrics["true_negative"],
+            "clean_tar_delta_pp": (
+                round(clean_tar_delta_pp, 4) if clean_tar_delta_pp is not None else None
+            ),
+            "meets_clean_cost_budget": (
+                abs(clean_tar_delta_pp) <= CLEAN_COST_BUDGET_PP
+                if clean_tar_delta_pp is not None
+                else None
+            ),
         },
-        "limitations": derive_limitations(sidecars, subjects=subjects, sessions=sessions),
+        "limitations": derive_limitations(
+            sidecars,
+            subjects=subjects,
+            sessions=sessions,
+            clean_tar_delta_pp=clean_tar_delta_pp,
+        ),
         "created_by_run_id": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -182,12 +239,22 @@ def main() -> int:
     parser.add_argument("--session", required=True, action="append", help="session.json 경로. 반복 가능")
     parser.add_argument("--target-fpr", type=float, default=0.01)
     parser.add_argument("--top-k", type=int, default=6)
+    parser.add_argument(
+        "--window-frames",
+        type=int,
+        default=3,
+        help="게이트가 묶는 프레임 수. face_auth FeatureSqueezeConfig.max_frames와 맞춘다",
+    )
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
     sidecars = [json.loads(Path(path).read_text(encoding="utf-8")) for path in args.session]
     artifact = build_artifact(
-        args.probe, sidecars, target_fpr=args.target_fpr, top_k=args.top_k
+        args.probe,
+        sidecars,
+        target_fpr=args.target_fpr,
+        top_k=args.top_k,
+        window_frames=args.window_frames,
     )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(
@@ -197,6 +264,9 @@ def main() -> int:
 
     print(f"threshold {artifact['threshold']:.6f}  (목표 FPR {artifact['target_fpr']})")
     print(f"  달성 FPR {artifact['calibration']['achieved_fpr']}  clean {artifact['calibration']['n_clean']}")
+    print(f"  집계 {artifact['aggregation']['unit']} (윈도 {artifact['aggregation']['window_frames']}, {artifact['aggregation']['rule']})")
+    print(f"  clean TAR delta {artifact['evaluation']['clean_tar_delta_pp']}%p  "
+          f"예산({CLEAN_COST_BUDGET_PP}%p) 충족 {artifact['evaluation']['meets_clean_cost_budget']}")
     print(f"  TPR {artifact['evaluation']['tpr']}  AUC {artifact['evaluation']['roc_auc']:.4f}  adv {artifact['evaluation']['n_adversarial']}")
     print(f"\n한계 {len(artifact['limitations'])}건:")
     for item in artifact["limitations"]:

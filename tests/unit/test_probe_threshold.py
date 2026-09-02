@@ -61,11 +61,22 @@ class BuildArtifactTest(unittest.TestCase):
         self._dir.cleanup()
 
     def test_calibration_and_evaluation_are_separated(self):
-        artifact = build_artifact(self.probe, [_sidecar()], target_fpr=0.01, top_k=2)
+        artifact = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=1
+        )
 
         self.assertEqual(artifact["calibration"]["n_clean"], 300)
         self.assertEqual(artifact["evaluation"]["n_adversarial"], 60)
         self.assertNotIn("n_adversarial", artifact["calibration"])
+
+    def test_counts_are_in_aggregation_units(self):
+        """집계를 켜면 표본 수가 윈도 수가 된다. 프레임 수와 혼동하면 안 된다."""
+        artifact = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=3
+        )
+
+        self.assertEqual(artifact["calibration"]["n_clean_windows"], 300 - 3 + 1)
+        self.assertEqual(artifact["evaluation"]["n_adversarial"], 60 - 3 + 1)
 
     def test_achieved_fpr_never_exceeds_the_target(self):
         artifact = build_artifact(self.probe, [_sidecar()], target_fpr=0.01, top_k=2)
@@ -137,3 +148,79 @@ class LimitationsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AggregationTest(unittest.TestCase):
+    """임계값은 적용 단위와 함께 기록해야 한다.
+
+    face_auth 게이트는 최근 max_frames개 중 최악값을 쓴다. 프레임 단위로 정한
+    임계값을 세션에 그대로 쓰면 실현 FPR이 윈도 크기만큼 배가된다.
+    """
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.probe = _write_probe(
+            Path(self._dir.name) / "probe.csv", n_clean=300, n_adversarial=60
+        )
+
+    def tearDown(self):
+        self._dir.cleanup()
+
+    def test_artifact_records_the_aggregation_unit(self):
+        artifact = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=3
+        )
+
+        self.assertEqual(artifact["aggregation"]["unit"], "session")
+        self.assertEqual(artifact["aggregation"]["window_frames"], 3)
+        self.assertEqual(artifact["aggregation"]["rule"], "max")
+
+    def test_window_one_is_recorded_as_frame_unit(self):
+        artifact = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=1
+        )
+        self.assertEqual(artifact["aggregation"]["unit"], "frame")
+
+    def test_threshold_is_calibrated_on_aggregated_clean_windows(self):
+        """세션 단위 임계값은 프레임 단위보다 높아야 한다."""
+        frame = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=1
+        )
+        session = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=3
+        )
+
+        self.assertGreater(session["threshold"], frame["threshold"])
+        self.assertLessEqual(session["calibration"]["achieved_fpr"], 0.01)
+
+    def test_clean_cost_budget_is_reported(self):
+        artifact = build_artifact(
+            self.probe, [_sidecar()], target_fpr=0.01, top_k=2, window_frames=3
+        )
+        evaluation = artifact["evaluation"]
+
+        self.assertIsNotNone(evaluation["clean_tar_delta_pp"])
+        self.assertLessEqual(evaluation["clean_tar_delta_pp"], 0.0)
+        self.assertIsInstance(evaluation["meets_clean_cost_budget"], bool)
+
+
+class LimitationHonestyTest(unittest.TestCase):
+    """측정한 것을 미측정이라고 적으면 한계 목록 전체의 신뢰가 떨어진다."""
+
+    def test_measured_clean_cost_is_not_listed_as_unmeasured(self):
+        limitations = derive_limitations(
+            [_sidecar()], subjects={"p01"}, sessions={"s1"}, clean_tar_delta_pp=-0.5
+        )
+        self.assertFalse(any("측정하지 않았다" in item and "TAR" in item for item in limitations))
+
+    def test_unmeasured_clean_cost_is_listed(self):
+        limitations = derive_limitations(
+            [_sidecar()], subjects={"p01"}, sessions={"s1"}, clean_tar_delta_pp=None
+        )
+        self.assertTrue(any("TAR delta" in item for item in limitations))
+
+    def test_budget_overrun_is_listed_as_a_limitation(self):
+        limitations = derive_limitations(
+            [_sidecar()], subjects={"p01"}, sessions={"s1"}, clean_tar_delta_pp=-3.02
+        )
+        self.assertTrue(any("초과" in item for item in limitations))
