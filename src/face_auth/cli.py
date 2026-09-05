@@ -64,7 +64,10 @@ from src.face_auth.inference.content_replay import (
     ContentReplayGate,
     ContentReplayMonitor,
 )
-from src.face_auth.inference.feature_squeeze import FeatureSqueezeInspector
+from src.face_auth.inference.feature_squeeze import (
+    FeatureSqueezeConfig,
+    FeatureSqueezeInspector,
+)
 from src.face_auth.inference.full_pipeline import FullEvidencePipeline
 from src.face_auth.inference.head_pose import FivePointHeadPoseEstimator
 from src.face_auth.inference.pad_adapter import create_pad_scorer
@@ -463,6 +466,10 @@ def _authentication_config_sha256(args) -> str:
         "adversarial_threshold_version",
         "adversarial_template_threshold",
         "adversarial_template_threshold_version",
+        # 변환 범위도 preprocessing의 일부다. ADR-003에 따라 해시에 포함한다.
+        "adversarial_randomize",
+        "adversarial_range_preset",
+        "adversarial_families",
     )
     configuration = {name: getattr(args, name) for name in names}
     configuration["source_kind"] = "video" if args.video is not None else "camera"
@@ -844,6 +851,15 @@ def _full_pipeline(args, baseline, embedder, template_embedding):
                 ),
                 template_embedding,
             )
+        # 계열과 프리셋을 명시적으로 넘긴다. 연구 트랙 모듈의 기본값에 기대면 그쪽
+        # 변경이 인증 동작을 조용히 바꾼다.
+        squeeze_config = FeatureSqueezeConfig(
+            randomized=args.adversarial_randomize,
+            families=tuple(
+                name.strip() for name in args.adversarial_families.split(",") if name.strip()
+            ),
+            range_preset=args.adversarial_range_preset,
+        )
         adversarial = FeatureSqueezeInspector(
             embedder,
             TransformConsistencyDetector(
@@ -852,6 +868,7 @@ def _full_pipeline(args, baseline, embedder, template_embedding):
                     threshold_version=args.adversarial_threshold_version,
                 )
             ),
+            config=squeeze_config,
             template_detector=template_detector,
         )
     return FullEvidencePipeline(
@@ -984,6 +1001,25 @@ def build_parser() -> argparse.ArgumentParser:
     full.add_argument(
         "--adversarial-template-threshold-version",
         default="template-shift-unvalidated",
+    )
+    full.add_argument(
+        "--adversarial-randomize",
+        action="store_true",
+        help=(
+            "squeeze 변환 파라미터를 매 프레임 무작위로 뽑는다. 연구 트랙에서 고정 "
+            "변환의 BPDA 탐지율이 0%%였고 랜덤화로 84%%가 됐으나, face_auth 경로에서는 "
+            "아직 측정하지 않았다"
+        ),
+    )
+    full.add_argument(
+        "--adversarial-range-preset",
+        default="narrow",
+        help="랜덤화 파라미터 범위 프리셋. 인증 config 해시에 포함된다",
+    )
+    full.add_argument(
+        "--adversarial-families",
+        default="jpeg,bit,blur",
+        help="쉼표로 구분한 변환 계열. 기본값은 배포된 3종이다",
     )
     full.add_argument(
         "--adversarial-threshold-version", default="feature-squeeze-unvalidated"
