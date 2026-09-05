@@ -41,7 +41,7 @@
 | FR-301 | 부분 구현 | 독립 optional veto 2종 존재. Transform-consistency와 template-shift가 변환·임베딩을 공유하고 각각 거부권을 갖는다. 두 게이트의 clean/adaptive calibration 대기 |
 | FR-302 | 대기 | 올바른 held-out adversarial-training 재실행 미구현 |
 | EXP-301 | 대기 | Digital/screen/print transfer 비교 없음 |
-| PERF-001 | 대기 | 명시 hardware의 FPS/drop/P95 report 없음 |
+| PERF-001 | 부분 구현 | Detector 게이트의 P95 latency를 명시 hardware (MacBook Pro 18,3 / M1 Pro / macOS 26.6.2 / torch 2.2.2, x86_64 Rosetta 2)에서 측정. `latency_bench`와 단위 test 존재. 캡처 FPS와 frame drop 미측정, `07` 7절 latency budget 수치 미정의로 충족 판정 불가. `../experiments/PERF-001-detector-latency.md` |
 | SEC-301 | 대기 | Mobile attestation provider boundary만 문서화 |
 
 ## 3. Phase 0
