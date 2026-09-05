@@ -79,3 +79,23 @@ def bpda_transform_batch(tensor: torch.Tensor, names) -> torch.Tensor:
     )
     base = tensor.expand(len(names), -1, -1, -1)
     return base + (transformed.detach() - base.detach())
+
+
+def bpda_spec_batch(tensor: torch.Tensor, specs) -> torch.Tensor:
+    """
+    RandomizedTransformSpec 목록에 대한 BPDA 배치.
+
+    랜덤화를 아는 공격자는 매 스텝 분포에서 새로 뽑아 EOT를 건다. 고정 파라미터로
+    공격하면 방어가 실제로 쓸 파라미터와 어긋나 공격이 약해진다. 그 차이를 재려면
+    두 공격자를 모두 평가해야 한다.
+    """
+    specs = list(specs)
+    if not specs:
+        raise ValueError("변환 spec을 하나 이상 지정해야 한다")
+
+    source = _to_pil(tensor)
+    transformed = torch.cat(
+        [_to_tensor(spec.apply(source), tensor.device) for spec in specs]
+    )
+    base = tensor.expand(len(specs), -1, -1, -1)
+    return base + (transformed.detach() - base.detach())

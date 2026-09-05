@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -116,6 +117,8 @@ def run_eot_attack(
     *,
     transforms,
     use_bpda: bool = False,
+    randomized_families=None,
+    rng=None,
     device=None,
 ) -> tuple[Image.Image, float]:
     """
@@ -126,7 +129,15 @@ def run_eot_attack(
     use_bpda가 참이면 미분 불가한 변환도 루프에 넣는다. backward만 항등으로
     근사하므로 공격자가 보는 detector 출력은 방어가 실제로 계산하는 값과 같다.
     """
-    if use_bpda:
+    if randomized_families is not None:
+        # 랜덤화를 아는 공격자. 매 스텝 분포에서 새로 뽑아 기대값을 최적화한다.
+        from src.verification.defenses.bpda import bpda_spec_batch
+        from src.verification.defenses.randomized_squeeze import sample_transform
+
+        if rng is None:
+            rng = np.random.default_rng(0)
+        names, specs = list(randomized_families), None
+    elif use_bpda:
         from src.verification.defenses.bpda import bpda_transform_batch
 
         names = list(transforms)
@@ -151,11 +162,14 @@ def run_eot_attack(
         if config.consistency_weight > 0:
             # 변환본을 한 배치로 묶어 forward를 1회로 줄인다. 변환마다 따로 돌리면
             # 스텝당 forward가 변환 수만큼 늘고, 표본이 늘수록 그대로 시간이 된다.
-            variants = (
-                bpda_transform_batch(adversarial, names)
-                if use_bpda
-                else torch.cat([_apply(adversarial, spec) for spec in specs])
-            )
+            if randomized_families is not None:
+                variants = bpda_spec_batch(
+                    adversarial, [sample_transform(f, rng) for f in names]
+                )
+            elif use_bpda:
+                variants = bpda_transform_batch(adversarial, names)
+            else:
+                variants = torch.cat([_apply(adversarial, spec) for spec in specs])
             squeezed = F.normalize(model(variants), p=2, dim=1)
             # detector가 보는 값. 작을수록 탐지되지 않는다.
             consistency_loss = (
