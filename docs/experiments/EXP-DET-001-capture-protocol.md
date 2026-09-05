@@ -55,7 +55,13 @@ https://colab.research.google.com/github/Yaho03/26_HC160/blob/experiment/EXP-DET
 `ReferenceError`가 난다.
 
 세션당 `TARGET_FRAMES = 200`, `ATTACK_EVERY = 5`이므로 clean 200개와 adversarial
-40개가 모인다. 공격은 `pgd`, `fgsm`, `pgd_low_eps` 세 종류를 번갈아 생성한다.
+40개가 모인다.
+
+**세션당 약 6분이 걸린다.** Colab 브라우저 캡처의 실효 속도가 0.6~0.7 fps이기 때문이다.
+참가자에게 2분이라고 안내했다가 두 세션 모두 3분 지점에서 중단된 사례가 있다. 소요
+시간을 실제보다 짧게 안내하면 참가자가 정상 동작을 이상으로 판단해 중단한다.
+
+clean 표본이 100개 미만이면 목표 FPR 1%를 관측값으로 맞출 수 없어 그 세션은 쓸 수 없다. 공격은 `pgd`, `fgsm`, `pgd_low_eps` 세 종류를 번갈아 생성한다.
 
 ## 5. 촬영 중 지켜야 할 것
 
