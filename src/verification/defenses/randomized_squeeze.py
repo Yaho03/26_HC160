@@ -10,6 +10,11 @@ certificate를 만들지 않으므로 보장이 아니라 경험적 방어다. �
 
 파라미터 범위는 고정 변환 실측에서 유용했던 구간을 중심으로 잡았다. 범위를 넓히면
 공격자가 맞히기 어려워지지만 clean 표본의 분산도 함께 커진다.
+
+bit 계열은 face_auth 게이트가 쓰는 계열(jpeg, bit, blur)을 그대로 랜덤화할 수 있게
+두었다. 랜덤화와 계열 교체를 한 번에 하면 탐지율 변화의 원인을 가릴 수 없다.
+연구 트랙 웹캠 실측에서 비트깊이는 약했으나(self_consistency AUC 0.42,
+template_shift 0.30) face_auth 경로에서는 측정한 적이 없다.
 """
 
 from __future__ import annotations
@@ -21,12 +26,27 @@ import cv2
 import numpy as np
 from PIL import Image, ImageFilter
 
-# family -> (최소, 최대). 실측에서 분리도가 있던 구간을 덮는다.
-_FAMILIES = {
-    "blur": (0.5, 2.0),
-    "jpeg": (30, 75),
-    "median": (3, 5),
+# family -> (최소, 최대).
+#
+# narrow는 고정 변환 실측에서 분리도가 있던 구간을 덮는다. wide는 공격자가 맞히기
+# 어렵게 넓힌 것이다. 범위를 넓히면 clean 점수의 분산도 함께 커지므로 어느 쪽이
+# 이기는지는 측정해야 한다.
+RANGE_PRESETS = {
+    "narrow": {
+        "blur": (0.5, 2.0),
+        "jpeg": (30, 75),
+        "median": (3, 5),
+        "bit": (4, 6),
+    },
+    "wide": {
+        "blur": (0.3, 3.5),
+        "jpeg": (10, 90),
+        "median": (3, 7),
+        "bit": (3, 7),
+    },
 }
+
+_FAMILIES = RANGE_PRESETS["narrow"]
 
 
 class UnknownFamilyError(ValueError):
@@ -57,20 +77,27 @@ class RandomizedTransformSpec:
         if self.family == "median":
             array = np.asarray(image.convert("RGB"), dtype=np.uint8)
             return Image.fromarray(cv2.medianBlur(array, int(self.params["kernel"])))
+        if self.family == "bit":
+            # face_auth feature_squeeze.py 와 같은 반올림 양자화
+            levels = float((1 << int(self.params["bits"])) - 1)
+            array = np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
+            quantized = np.rint(array * levels) / levels * 255.0
+            return Image.fromarray(np.clip(quantized, 0, 255).astype(np.uint8))
         raise UnknownFamilyError(self.family)
 
 
-def sample_transform(family: str, rng) -> RandomizedTransformSpec:
+def sample_transform(family: str, rng, preset: str = "narrow") -> RandomizedTransformSpec:
     """
     계열에서 파라미터를 하나 뽑는다. rng를 받아 재현 가능하게 한다.
 
     median kernel은 홀수여야 하므로 후보 중에서 고른다.
     """
-    if family not in _FAMILIES:
+    ranges = RANGE_PRESETS[preset]
+    if family not in ranges:
         raise UnknownFamilyError(
-            f"알 수 없는 계열 {family!r}. 사용 가능: {sorted(_FAMILIES)}"
+            f"알 수 없는 계열 {family!r}. 사용 가능: {sorted(ranges)}"
         )
-    low, high = _FAMILIES[family]
+    low, high = ranges[family]
 
     if family == "blur":
         return RandomizedTransformSpec(family, {"radius": float(rng.uniform(low, high))})
@@ -78,5 +105,7 @@ def sample_transform(family: str, rng) -> RandomizedTransformSpec:
         return RandomizedTransformSpec(
             family, {"quality": int(rng.integers(low, high + 1))}
         )
-    kernels = [k for k in (3, 5) if low <= k <= high]
+    if family == "bit":
+        return RandomizedTransformSpec(family, {"bits": int(rng.integers(low, high + 1))})
+    kernels = [k for k in (3, 5, 7) if low <= k <= high]
     return RandomizedTransformSpec(family, {"kernel": int(rng.choice(kernels))})

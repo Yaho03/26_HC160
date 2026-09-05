@@ -133,3 +133,90 @@ class RandomizationAwareAttackTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             bpda_spec_batch(torch.zeros(1, 3, 8, 8), [])
+
+
+class RangePresetTest(unittest.TestCase):
+    """범위를 넓히면 공격자가 맞히기 어려워지지만 clean 분산도 커진다.
+
+    어느 쪽이 이기는지는 측정해야 알 수 있으므로 범위를 바꿀 수 있어야 한다.
+    """
+
+    def test_named_presets_exist(self):
+        from src.verification.defenses.randomized_squeeze import RANGE_PRESETS
+
+        for name in ("narrow", "wide"):
+            self.assertIn(name, RANGE_PRESETS)
+
+    def test_wide_preset_covers_the_narrow_one(self):
+        from src.verification.defenses.randomized_squeeze import RANGE_PRESETS
+
+        for family, (low, high) in RANGE_PRESETS["narrow"].items():
+            wide_low, wide_high = RANGE_PRESETS["wide"][family]
+            with self.subTest(family=family):
+                self.assertLessEqual(wide_low, low)
+                self.assertGreaterEqual(wide_high, high)
+
+    def test_sampling_respects_the_selected_preset(self):
+        from src.verification.defenses.randomized_squeeze import RANGE_PRESETS
+
+        rng = np.random.default_rng(0)
+        drawn = [sample_transform("blur", rng, preset="wide").params["radius"]
+                 for _ in range(200)]
+        low, high = RANGE_PRESETS["wide"]["blur"]
+
+        self.assertGreaterEqual(min(drawn), low)
+        self.assertLessEqual(max(drawn), high)
+        # 넓은 범위를 실제로 쓰는지 확인한다. narrow 상한을 넘는 표본이 있어야 한다.
+        self.assertGreater(max(drawn), RANGE_PRESETS["narrow"]["blur"][1])
+
+    def test_unknown_preset_is_rejected(self):
+        with self.assertRaises(KeyError):
+            sample_transform("blur", np.random.default_rng(0), preset="wishful")
+
+    def test_default_preset_is_narrow(self):
+        from src.verification.defenses.randomized_squeeze import RANGE_PRESETS, transform_families
+
+        self.assertEqual(transform_families(), RANGE_PRESETS["narrow"])
+
+
+class BitFamilyTest(unittest.TestCase):
+    """face_auth 게이트가 쓰는 계열(jpeg, bit, blur)을 그대로 랜덤화할 수 있어야 한다.
+
+    랜덤화와 계열 교체를 한 번에 하면 탐지율이 변했을 때 어느 쪽 때문인지 알 수 없다.
+    비트깊이는 웹캠 실측에서 약했으나(AUC 0.42, 0.30) face_auth 경로에서는 측정한 적이
+    없으므로 교체는 별도 변경으로 판단한다.
+    """
+
+    def test_bit_family_exists(self):
+        from src.verification.defenses.randomized_squeeze import RANGE_PRESETS
+
+        for preset in RANGE_PRESETS:
+            with self.subTest(preset=preset):
+                self.assertIn("bit", RANGE_PRESETS[preset])
+
+    def test_bit_sampling_stays_in_range(self):
+        from src.verification.defenses.randomized_squeeze import RANGE_PRESETS
+
+        rng = np.random.default_rng(0)
+        low, high = RANGE_PRESETS["narrow"]["bit"]
+        for _ in range(50):
+            bits = sample_transform("bit", rng).params["bits"]
+            self.assertGreaterEqual(bits, low)
+            self.assertLessEqual(bits, high)
+
+    def test_bit_transform_changes_the_image(self):
+        spec = sample_transform("bit", np.random.default_rng(0))
+        source = _image()
+        result = spec.apply(source)
+
+        self.assertEqual(result.size, source.size)
+        self.assertFalse(np.array_equal(np.asarray(result), np.asarray(source)))
+
+    def test_face_auth_family_set_is_supported(self):
+        """jpeg, bit, blur 세 계열로 랜덤화가 가능해야 한다."""
+        rng = np.random.default_rng(0)
+        source = _image()
+        for family in ("jpeg", "bit", "blur"):
+            with self.subTest(family=family):
+                spec = sample_transform(family, rng)
+                self.assertEqual(spec.apply(source).size, source.size)
