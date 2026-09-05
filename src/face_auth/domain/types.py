@@ -73,6 +73,10 @@ class GateResult:
     model_version: str | None = None
     threshold_version: str | None = None
     latency_ms: float = 0.0
+    # Transformation별 evidence. 07_DEFENSE_AND_DETECTION_SPEC.md 6절이 요구한다.
+    # 변환 파라미터가 무작위면 재현에 이 값이 필요하다. 고정 변환은 config에 이미
+    # 적혀 있으므로 비워 둔다. 해시 가능해야 하므로 문자열 튜플을 쓴다.
+    evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
