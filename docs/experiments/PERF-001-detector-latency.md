@@ -4,7 +4,7 @@
 |---|---|
 | 문서명 | Squeezing detector latency 측정 결과 |
 | 요구사항 ID | `PERF-001` (`face_auth/BACKLOG.md`), `EXP-PERF-001` (`08_EXPERIMENT_PLAN.md`) |
-| 상태 | 1차 측정 완료. 예산 판정 불가 |
+| 상태 | 배치화 재측정, 캡처 drop, FPS 구분 완료. 예산 판정 불가 |
 | 측정일 | 2026-09-05 |
 | 기준 문서 | `07_DEFENSE_AND_DETECTION_SPEC.md` 7절, `09_EVALUATION_METRICS.md` 6절 |
 | 도구 | `src/verification/defenses/latency_bench.py` |
@@ -291,3 +291,178 @@ python -m unittest discover -s tests/unit -t .
 
 `outputs/perf/`는 gitignore 대상이므로 JSON 산출물은 커밋하지 않는다. 수치는 이
 문서에 남는다.
+
+## 9. 배치화 적용 후 재측정 (2026-09-05)
+
+5.2절이 지목한 원인을 고쳤다. `src/face_auth/inference/verifier.py`의
+`FaceNetEmbedder.embed`가 이미지 목록을 한 배치로 forward한다.
+
+측정 환경은 2절과 같다. Rosetta 2 번역 실행이며 절대 성능이 아니라 같은 환경 내
+상대 비교만 유효하다.
+
+### 9.1 embed 자체의 개선
+
+같은 실행 안에서 변경 전 구현과 현재 구현을 번갈아 쟀다. 9장, mps, 30회 반복,
+워밍업 10회다.
+
+| 구현 | p50 | p95 |
+|---|---|---|
+| 개별 호출 9회 (변경 전) | 598.84 ms | 610.75 ms |
+| 배치 1회 (현재) | 72.14 ms | 76.21 ms |
+
+**8.30배다.** 5.3절이 별개로 잰 두 값의 비율로 계산한 7.7배보다 크다. 그 계산은
+예측이 아니라 서로 다른 실행의 비율이었고, 이 값은 한 실행 안에서 같은 조건으로 잰
+것이다.
+
+### 9.2 게이트 전체의 개선
+
+| 시나리오 | 변경 전 p50 | 변경 후 p50 | 배수 |
+|---|---|---|---|
+| `face_auth_gate_1` total | 616.43 | 224.19 | 2.75 |
+| `face_auth_gate_1` forward | 609.99 | 218.05 | 2.80 |
+| `face_auth_gate_2` total | 606.08 | 220.33 | 2.75 |
+
+**게이트 전체는 2.75배에 그친다.** embed 하나가 8.3배 빨라졌는데 게이트가 그만큼
+줄지 않은 이유는 게이트가 프레임마다 embed를 부르기 때문이다. `max_frames`가 3이므로
+forward가 3회 남는다.
+
+배치화는 프레임 안의 변환 3장을 묶었을 뿐 프레임 사이를 묶지 않았다. 프레임 3장의
+변환 9장을 한 번에 묶으면 더 줄일 여지가 있으나, 그러려면 `FeatureSqueezeInspector`의
+루프 구조를 바꿔야 한다. 이 문서의 범위 밖이며 별도 변경으로 판단한다.
+
+### 9.3 벤치마크 시나리오 이름이 어긋났다
+
+`forward_only_single_gate`는 `FaceNetEmbedder.embed`를 호출한다. 배치화 이후 이
+시나리오는 더 이상 "개별 호출 9회"가 아니다. 재측정에서 `single_gate` 72.14 ms와
+`batch_gate` 74.19 ms가 같아진 것이 그 결과다.
+
+| 시나리오 | 변경 전 | 변경 후 | 의미 |
+|---|---|---|---|
+| `forward_only_single_gate` | 602.85 | 72.14 | 이름과 달리 이제 배치 1회다 |
+| `forward_only_batch_gate` | 77.86 | 74.19 | 변화 없음 |
+
+두 값이 같아진 것은 배치화가 적용됐다는 증거이지 성능 저하가 아니다. 시나리오 이름은
+`latency_bench.py`가 소유하므로 여기서 바꾸지 않는다. 이름을 고치려면 그 파일을
+수정해야 하며 별도 작업이다.
+
+### 9.4 값이 바뀌지 않았다
+
+배치화가 임베딩 값을 바꾸면 지금까지 산출한 모든 임계값이 무효가 된다.
+
+| 항목 | 결과 |
+|---|---|
+| 배치와 순차의 최대 절대 차이 | 6.333e-08 |
+| 허용치 | 1e-05 |
+| 여유 | 허용치의 0.6% |
+
+`tests/unit/test_batch_embed.py`가 이를 고정한다. dtype(float32), shape(512,), 순서,
+L2 정규화를 각각 별도 테스트로 둔다. 값 동일성 테스트에 dtype 검증을 묻으면 float64로
+바꿔도 값이 같아 통과한다.
+
+## 10. 시나리오 이름을 실제 측정 대상에 맞춘다 (2026-09-05)
+
+9.3절이 지목한 불일치를 고쳤다.
+
+### 10.1 이름을 제거한 이유
+
+`forward_only_single_gate`는 `meta`로 `calls: 9, batch_size: 1`을 선언하면서 실제로는
+배치 1회를 쟀다. 이름을 제거하고 두 시나리오로 나눴다.
+
+| 새 이름 | 실제 동작 | meta |
+|---|---|---|
+| `forward_only_loop_gate` | `get_embedding` 개별 호출 9회 | `calls: 9, batch_size: 1` |
+| `forward_only_embedder_gate` | `FaceNetEmbedder.embed` (현재 경로) | `calls: 1, batch_size: 9` |
+| `forward_only_batch_gate` | `embed_batch` (기존 유지) | `calls: 1, batch_size: 9` |
+
+**보존할 시계열이 애초에 없다.** 621520a에서 그 이름이 가리키는 측정 대상이 바뀌었으므로
+배치화 전후를 같은 이름으로 비교하면 서로 다른 것을 비교하게 된다. 이름을 유지하면 그
+함정이 남는다.
+
+**이 문서 4절과 5.2절의 `forward_only_single_gate` 값(mps 602.85, cpu 636.62)은
+621520a 이전 측정이며 새 이름의 값과 비교할 수 없다.** 이전 값에 대응하는 것은
+`forward_only_loop_gate`다.
+
+### 10.2 불일치를 잡는 장치
+
+이름을 고치는 것만으로는 다음에 또 어긋난다. `forward_scenarios`를 순수 함수로 분리하고,
+스텁 모델로 실제 forward 호출 수와 배치 크기를 세어 `meta`의 선언과 대조한다.
+
+`tests/unit/test_scenario_contract.py`가 이를 고정한다. 이름이 아니라 선언과 실제의
+불일치 자체를 잡으므로, 구현이 다시 바뀌어도 드러난다.
+
+## 11. 캡처 FPS와 게이트 지연은 다른 것이다
+
+### 11.1 게이트는 FPS를 제한하지 않는다
+
+`FullEvidencePipeline.evaluate`는 `adversarial_inspector.evaluate(crops, embeddings)`를
+**인증 판정당 1회** 호출한다. 프레임 루프 안이 아니다. 게이트는 최근 `max_frames`장을
+받아 한 번 판정하므로, 캡처 루프의 프레임 처리 속도를 제한하지 않는다.
+
+따라서 게이트 224 ms를 FPS로 환산해 상한을 말하면 존재하지 않는 병목을 보고하게 된다.
+
+### 11.2 두 값을 구분해 적는다
+
+| 구분 | 대상 | 단위 | 값 | 근거 |
+|---|---|---|---|---|
+| 캡처 경로 처리 속도 | 카메라 read + 얼굴 검출 + 임베딩 | fps | 0.60 ~ 2.41 | 세션 사이드카 `effective_fps` |
+| 게이트 종단 지연 | 인증 1회당 추가 지연 | ms | 224 | `latency_bench` `face_auth_gate_1` |
+
+캡처 실측은 `data/probe_sessions` 사이드카의 값이다.
+
+| 세션 | 캡처 경로 | effective_fps | 프레임당 ms |
+|---|---|---|---|
+| `7b94fe4d1971_local` | 로컬 OpenCV | 2.41 | 415 |
+| `d84f420d1251_colab` | Colab 브라우저 PNG | 0.70 | 1429 |
+| `61abc6739d9b_colab` | Colab 브라우저 PNG | 0.64 | 1562 |
+| `276fae986230_colab` | Colab 브라우저 PNG | 0.60 | 1667 |
+
+**캡처가 게이트보다 2~7배 느리다.** 실시간 성능의 병목은 게이트가 아니라 캡처 경로다.
+
+### 11.3 버퍼 드롭
+
+`LatestFrameBuffer`(기본 `max_frames=30`)의 동작을 카메라 없이 측정했다.
+
+| 생산 | 소비 주기 | 드롭 | 전달 | 드롭률 |
+|---|---|---|---|---|
+| 100 | 1 | 0 | 100 | 0.0% |
+| 100 | 5 | 0 | 20 | 0.0% |
+| 100 | 10 | 0 | 10 | 0.0% |
+| 100 | 소비 없음 | 70 | 0 | 70.0% |
+| 500 | 10 | 0 | 50 | 0.0% |
+
+소비 주기 10에서도 드롭이 0이다. 버퍼 30장은 이 비율에서 충분하다. 드롭은 소비자가
+전혀 읽지 않을 때만 발생한다.
+
+`dropped`와 `delivered`는 다른 것을 센다. `pop_latest`가 최신 한 장만 주고 나머지를
+버리므로 둘의 합은 `produced`가 되지 않는다. 오래된 프레임보다 최신 프레임이 중요하다는
+실시간 인증의 설계다.
+
+### 11.4 미측정으로 남는 것
+
+카메라가 있어야 잴 수 있다.
+
+- 드라이버 수준 실제 드롭. OpenCV `VideoCapture`가 내부 버퍼 드롭을 보고하지 않는다
+- 카메라 실효 FPS의 시간에 따른 변동. 노출 조정과 조명 변화의 영향
+- 장시간 캡처의 안정성. 열 스로틀링과 메모리 증가
+- 기기별 차이. 이 문서의 수치는 단일 기기 단일 환경이다
+
+## 12. 남은 개선 여지 (추정)
+
+게이트는 배치화 이후에도 224 ms다. `FeatureSqueezeInspector`가 프레임마다 `embed`를
+부르므로 forward가 `max_frames`만큼, 기본 3회 남는다.
+
+**아래는 측정값이 아니라 추정이다.** 구현하지 않았다.
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| 현재 게이트 forward | 218 ms | 실측 (`face_auth_gate_1` forward) |
+| 9장 배치 1회 forward | 74 ms | 실측 (`forward_only_batch_gate`) |
+| 프레임 간 배치화 시 예상 total | 약 80 ms | 74 + other 6.3 ms |
+
+프레임 3장의 변환 9장을 한 배치로 묶으면 이 자리로 내려갈 여지가 있다. 다만
+`FeatureSqueezeInspector`의 루프 구조를 바꿔야 하며 `src/face_auth/inference/`는 다른
+작업의 소유다. 랜덤화가 켜지면 프레임마다 파라미터가 달라야 하므로, 묶더라도 프레임별
+spec을 유지해야 한다.
+
+`07_DEFENSE_AND_DETECTION_SPEC.md` 7절의 latency budget 수치가 저장소에 정의되지
+않았으므로 이 문서는 계속 판정을 보류한다.

@@ -427,6 +427,58 @@ def describe_environment(device_name: str) -> dict:
 # cpu와 가속기를 비교하려면 프로세스를 나눠 두 번 실행한다.
 
 
+def forward_scenarios(*, crop, gate_images, frame_embedder, batch_embedder):
+    """
+    forward 격리 시나리오. 같은 이미지 수를 다른 호출 방식으로 잰다.
+
+    meta의 calls와 batch_size는 그 시나리오가 forward를 몇 번, 얼마 크기로 부르는지의
+    선언이다. 구현이 바뀌면 선언과 어긋날 수 있으므로 테스트가 스텁 모델로 실제 호출
+    수를 세어 대조한다.
+
+    forward_only_single_gate라는 이름이 있었으나 제거했다. 621520a에서
+    FaceNetEmbedder.embed가 배치화되면서 그 이름이 가리키는 측정 대상이 바뀌었다.
+    이름을 유지하면 배치화 전후 값을 같은 이름으로 비교하게 되는데 서로 다른 것을
+    재고 있으므로 성립하지 않는다.
+    """
+
+    def loop_gate():
+        from src.verification.defenses.facenet_embed import get_embedding
+
+        device = getattr(frame_embedder, "device", None)
+        return [get_embedding(crop, device).numpy() for _ in range(gate_images)]
+
+    return {
+        "forward_only_single1": (
+            callable_step(lambda: frame_embedder.embed([crop])),
+            {"calls": 1, "batch_size": 1},
+        ),
+        "forward_only_loop_gate": (
+            callable_step(loop_gate),
+            {
+                "calls": gate_images,
+                "batch_size": 1,
+                "role": "게이트 이미지 수만큼 개별 호출. 호출당 고정 비용 기준선",
+            },
+        ),
+        "forward_only_embedder_gate": (
+            callable_step(lambda: frame_embedder.embed([crop] * gate_images)),
+            {
+                "calls": 1,
+                "batch_size": gate_images,
+                "role": "현재 게이트 경로. 621520a 이후 배치 1회다",
+            },
+        ),
+        "forward_only_batch_gate": (
+            callable_step(lambda: batch_embedder.embed_batch([crop] * gate_images)),
+            {
+                "calls": 1,
+                "batch_size": gate_images,
+                "role": "연구 트랙 embed_batch. embedder_gate와 같은 값이어야 한다",
+            },
+        ),
+    }
+
+
 def _build_report(args) -> dict:
     from src.verification.defenses.facenet_embed import (
         FaceNetBatchEmbedder,
@@ -518,21 +570,17 @@ def _build_report(args) -> dict:
             ),
             {"draws": 3, "role": "적용 없이 추출만"},
         ),
-        # forward 격리. 같은 이미지 수를 배치 1회와 개별 호출로 나눠 재면 forward의
-        # 느림이 연산 때문인지 호출 오버헤드 때문인지 갈린다.
-        "forward_only_single1": (
-            callable_step(lambda: frame_embedder.embed([crop])),
-            {"calls": 1, "batch_size": 1},
-        ),
-        "forward_only_single_gate": (
-            callable_step(lambda: frame_embedder.embed([crop] * gate_images)),
-            {"calls": gate_images, "batch_size": 1, "role": "현재 게이트 경로"},
-        ),
-        "forward_only_batch_gate": (
-            callable_step(lambda: batch_embedder.embed_batch([crop] * gate_images)),
-            {"calls": 1, "batch_size": gate_images, "role": "같은 이미지 수를 배치 1회로"},
-        ),
     }
+    # forward 격리. 같은 이미지 수를 다른 호출 방식으로 재면 느림이 연산 때문인지
+    # 호출당 고정 비용 때문인지 갈린다.
+    scenarios.update(
+        forward_scenarios(
+            crop=crop,
+            gate_images=gate_images,
+            frame_embedder=frame_embedder,
+            batch_embedder=batch_embedder,
+        )
+    )
 
     results = {}
     for name, (step, meta) in scenarios.items():

@@ -78,6 +78,29 @@ class FaceNetEmbedder:
         self.device = device
 
     def embed(self, images: list[Image.Image]) -> list[np.ndarray]:
-        from src.verification.defenses.facenet_embed import get_embedding
+        """
+        이미지 목록을 한 배치로 forward한다.
 
-        return [get_embedding(image, self.device).numpy() for image in images]
+        이 크기에서 FaceNet forward는 연산이 아니라 호출당 고정 비용에 묶여 있다.
+        한 장씩 호출하면 그 비용을 이미지 수만큼 낸다. PERF-001 실측에서 mps 기준
+        9장 개별 호출 602.85 ms, 같은 9장 배치 1회 77.86 ms였다.
+        docs/experiments/PERF-001-detector-latency.md 5.2절 참조.
+
+        전처리 계약은 그대로다. preprocess를 공유하므로 160x160 bilinear와
+        (x-127.5)/128.0 정규화가 같다. 반환 dtype도 float32를 유지한다.
+        get_embedding이 torch 텐서를 float32로 돌려주던 것과 맞춘다.
+        """
+        import torch
+        import torch.nn.functional as F
+
+        from src.verification.defenses.facenet_embed import get_model, preprocess
+
+        if not images:
+            return []
+
+        model, device = get_model(self.device)
+        batch = torch.cat([preprocess(image) for image in images]).to(device)
+        with torch.no_grad():
+            embeddings = model(batch)
+        embeddings = F.normalize(embeddings, p=2, dim=1).cpu().numpy()
+        return [vector for vector in embeddings]
