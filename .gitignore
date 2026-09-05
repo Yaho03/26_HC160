@@ -32,4 +32,6 @@ local_pad_reports/
 *.npz
 
 # EXP-DET-001 계측 세션. 얼굴에서 파생된 생체 측정값이므로 커밋하지 않는다.
+# 원격 참가자 세션과 합산본도 같다. 접두사로 묶어 새 디렉터리가 빠지지 않게 한다.
 outputs/probe/
+outputs/probe_*/
